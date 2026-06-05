@@ -1,0 +1,5 @@
+npm run check-format || (echo "husky: pre-commit failed (check-format)" && exit 1)
+npm run check-lint || (echo "husky: pre-commit failed (check-lint)" && exit 1)
+npm run check-types || (echo "husky: pre-commit failed (check-types)" && exit 1)
+
+echo "husky: pre-commit success"
