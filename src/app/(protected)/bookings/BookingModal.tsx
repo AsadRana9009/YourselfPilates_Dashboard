@@ -19,7 +19,7 @@ const bookingSchema = z.object({
   title: z.string().min(1, "Title is required"),
   booking_type: z.enum(["pro", "public"]),
   professor: z.number({ required_error: "Professor is required" }),
-  students: z.array(z.number()).min(1, "Select at least one student"),
+  students: z.array(z.number()),
   booking_date: z.string().min(1, "Booking date is required"),
   time_slot: z.string().min(1, "Time slot is required"),
   notes: z.string().optional(),
@@ -201,7 +201,7 @@ export function BookingModal({
       };
       if (initialData) {
         await apiFetch(`/booking/bookings/${initialData.id}/`, {
-          method: "PUT",
+          method: "PATCH",
           body: JSON.stringify(payload),
         });
       } else {
@@ -246,8 +246,12 @@ export function BookingModal({
                 className="w-full border rounded px-3 py-2 dark:bg-black"
                 disabled={formLoading}
               >
-                <option value="pro" className="dark:bg-black">Pro (Professor)</option>
-                <option value="public" className="dark:bg-black">Public (Student)</option>
+                <option value="pro" className="dark:bg-black">
+                  Pro (Professor)
+                </option>
+                <option value="public" className="dark:bg-black">
+                  Public (Student)
+                </option>
               </select>
             )}
           />
@@ -350,8 +354,18 @@ export function BookingModal({
                   disabled={formLoading || !bookingDate}
                 >
                   <option value="" className="dark:bg-black">
-                    {initialData ? initialData.time_slot : "Select Time Slot"}
+                    Select Time Slot
                   </option>
+                  {/* Keep the current slot as selectable even if not in available list */}
+                  {initialData?.time_slot &&
+                    !slots.find((s) => s.value === initialData.time_slot) && (
+                      <option
+                        value={initialData.time_slot}
+                        className="dark:bg-black"
+                      >
+                        {initialData.time_slot} (current)
+                      </option>
+                    )}
                   {slots.map((slot) => (
                     <option
                       key={slot.value}

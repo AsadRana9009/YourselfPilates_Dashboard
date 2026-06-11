@@ -34,6 +34,11 @@ export async function apiFetch<T>(url: string, options: ApiFetchOptions = {}) {
 
     if (error.message) {
       errorMessage = error.message;
+    } else if (error.error) {
+      errorMessage =
+        typeof error.error === "string"
+          ? error.error
+          : JSON.stringify(error.error);
     } else if (error.non_field_errors?.length) {
       errorMessage = (error.non_field_errors as string[]).join(". ");
     } else if (error.detail) {
@@ -54,6 +59,10 @@ export async function apiFetch<T>(url: string, options: ApiFetchOptions = {}) {
     const apiError = new Error(errorMessage) as Error & { data?: unknown };
     apiError.data = error;
     throw apiError;
+  }
+  // 204 No Content (e.g. DELETE) — no body to parse
+  if (res.status === 204 || res.headers.get("content-length") === "0") {
+    return undefined as T;
   }
   return res.json() as Promise<T>;
 }

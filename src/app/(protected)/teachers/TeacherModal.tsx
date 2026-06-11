@@ -35,11 +35,10 @@ const KNOWN_DOMAINS = [
 ];
 
 function levenshtein(a: string, b: string): number {
-  const m = a.length, n = b.length;
+  const m = a.length,
+    n = b.length;
   const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
-    Array.from({ length: n + 1 }, (_, j) =>
-      i === 0 ? j : j === 0 ? i : 0
-    )
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
   );
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
@@ -101,7 +100,10 @@ const commonSchema = z.object({
 
 const editSchema = commonSchema.extend({
   password: z
-    .union([z.string().min(6, "Password must be at least 6 characters"), z.literal("")])
+    .union([
+      z.string().min(6, "Password must be at least 6 characters"),
+      z.literal(""),
+    ])
     .optional(),
 });
 
@@ -138,7 +140,12 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-red-500 text-xs mt-1">{message}</p>;
 }
 
-export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: TeacherModalProps) {
+export function TeacherModal({
+  open,
+  onOpenChange,
+  onSuccess,
+  initialData,
+}: TeacherModalProps) {
   const isEdit = !!initialData;
 
   const {
@@ -154,7 +161,11 @@ export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: Tea
   });
 
   useEffect(() => {
-    reset((isEdit && initialData ? toFormValues(initialData) : emptyValues) as FormValues);
+    reset(
+      (isEdit && initialData
+        ? toFormValues(initialData)
+        : emptyValues) as FormValues
+    );
   }, [open, initialData, isEdit, reset]);
 
   async function onSubmit(data: FormValues) {
@@ -191,7 +202,17 @@ export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: Tea
       const apiErr = err as Error & { data?: Record<string, unknown> };
       const rawData = apiErr.data;
 
-      const FIELD_MAP = ["email", "full_name", "password", "contact_number", "city", "country", "state", "zipcode", "street"] as const;
+      const FIELD_MAP = [
+        "email",
+        "full_name",
+        "password",
+        "contact_number",
+        "city",
+        "country",
+        "state",
+        "zipcode",
+        "street",
+      ] as const;
 
       let mappedAny = false;
       if (rawData && typeof rawData === "object") {
@@ -220,11 +241,12 @@ export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: Tea
       className="sm:max-w-[560px]"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-
         {errors.root && (
           <div className="flex items-start gap-3 rounded-md border border-red-300 bg-red-50 dark:bg-red-950/20 dark:border-red-800 p-3">
             <AlertCircleIcon className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-            <p className="text-sm text-red-600 dark:text-red-400">{errors.root.message}</p>
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {errors.root.message}
+            </p>
           </div>
         )}
         <div>
@@ -236,7 +258,11 @@ export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: Tea
             placeholder="e.g. Maria Silva"
             disabled={isSubmitting}
             {...register("full_name")}
-            className={errors.full_name ? "border-red-500 focus-visible:ring-red-400" : ""}
+            className={
+              errors.full_name
+                ? "border-red-500 focus-visible:ring-red-400"
+                : ""
+            }
           />
           <FieldError message={errors.full_name?.message} />
         </div>
@@ -250,7 +276,9 @@ export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: Tea
             placeholder="e.g. professor@example.com"
             disabled={isEdit || isSubmitting}
             {...register("email")}
-            className={errors.email ? "border-red-500 focus-visible:ring-red-400" : ""}
+            className={
+              errors.email ? "border-red-500 focus-visible:ring-red-400" : ""
+            }
           />
           <FieldError message={errors.email?.message} />
         </div>
@@ -262,10 +290,16 @@ export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: Tea
           <Input
             id="password"
             type="password"
-            placeholder={isEdit ? "Leave blank to keep current password" : "Min. 6 characters"}
+            placeholder={
+              isEdit
+                ? "Leave blank to keep current password"
+                : "Min. 6 characters"
+            }
             disabled={isSubmitting}
             {...register("password")}
-            className={errors.password ? "border-red-500 focus-visible:ring-red-400" : ""}
+            className={
+              errors.password ? "border-red-500 focus-visible:ring-red-400" : ""
+            }
           />
           <FieldError message={errors.password?.message} />
         </div>
@@ -346,8 +380,10 @@ export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: Tea
                 <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
                 {isEdit ? "Saving..." : "Creating..."}
               </>
+            ) : isEdit ? (
+              "Save Changes"
             ) : (
-              isEdit ? "Save Changes" : "Create Professor"
+              "Create Professor"
             )}
           </Button>
         </div>

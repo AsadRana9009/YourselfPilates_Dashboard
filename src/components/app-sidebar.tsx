@@ -4,6 +4,7 @@ import {
   IconCalendar,
   IconDashboard,
   IconListLetters,
+  IconLocation,
   IconReport,
   IconShoppingCart,
   IconUsers,
@@ -71,6 +72,11 @@ const data = {
       title: "Packs",
       url: "/packs",
       icon: IconCalendar,
+    },
+    {
+      title: "Regions",
+      url: "/regions",
+      icon: IconLocation,
     },
     {
       title: "Orders",

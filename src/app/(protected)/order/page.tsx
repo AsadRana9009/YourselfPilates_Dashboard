@@ -6,12 +6,6 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import {
   Table,
   TableBody,
   TableCell,
@@ -19,8 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getOrders } from "@/lib/apiActions";
 import { Order } from "@/types/api";
+
 import { AddOrderModal } from "./AddOrderModal";
 
 /** DRF often omits `?page=1` on the first page — treat missing `page` as page 1. */

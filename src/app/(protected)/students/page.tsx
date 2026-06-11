@@ -6,7 +6,7 @@ import {
   Trash2Icon,
   UserCheckIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import swal from "sweetalert";
 
 import { Button } from "@/components/ui/button";
@@ -26,12 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TableLoader } from "@/components/ui/TableLoader";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiFetch } from "@/lib/api";
 import { deleteStudent } from "@/lib/apiActions";
 import { PaginatedResponse, Student } from "@/types/api";
@@ -46,27 +41,29 @@ function useStudents(isPublic: boolean) {
 
   const baseUrl = `/user/students/?is_public=${isPublic}`;
 
-  async function fetchStudents(url: string = baseUrl) {
-    setLoading(true);
-    try {
-      const res: PaginatedResponse<Student> = await apiFetch(url);
+  const fetchStudents = useCallback(
+    async (url: string = baseUrl) => {
+      setLoading(true);
+      try {
+        const res: PaginatedResponse<Student> = await apiFetch(url);
 
-      setStudents(res.results);
-      setNextUrl(res.next);
-      setPrevUrl(res.previous);
-    } catch (error) {
-      console.error("Fetch error:", error);
-      setStudents([]);
-      setNextUrl(null);
-      setPrevUrl(null);
-    } finally {
-      setLoading(false);
-    }
-  }
+        setStudents(res.results);
+        setNextUrl(res.next);
+        setPrevUrl(res.previous);
+      } catch {
+        setStudents([]);
+        setNextUrl(null);
+        setPrevUrl(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [baseUrl]
+  );
 
   useEffect(() => {
     fetchStudents();
-  }, []);
+  }, [fetchStudents]);
 
   return { students, nextUrl, prevUrl, loading, fetchStudents };
 }
@@ -87,8 +84,8 @@ function StudentTable({
   deleteLoadingId: number | null;
   prevUrl: string | null;
   nextUrl: string | null;
-  onEdit: (student: Student) => void;
-  onDelete: (student: Student) => void;
+  onEdit: (_student: Student) => void;
+  onDelete: (_student: Student) => void;
   onPrev: () => void;
   onNext: () => void;
 }) {

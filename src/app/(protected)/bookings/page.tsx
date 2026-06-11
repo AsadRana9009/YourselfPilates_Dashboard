@@ -31,11 +31,8 @@ import { BookingModal } from "./BookingModal";
 
 type BookingType = "pro" | "public";
 
-function BookingsTable({
-  bookingType,
-}: {
-  bookingType: BookingType;
-}) {
+function BookingsTable({ bookingType }: { bookingType: BookingType }) {
+  const isPro = bookingType === "pro";
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [nextUrl, setNextUrl] = useState<string | null>(null);
   const [prevUrl, setPrevUrl] = useState<string | null>(null);
@@ -50,8 +47,7 @@ function BookingsTable({
   async function fetchBookings(url?: string) {
     setLoading(true);
     try {
-      const endpoint =
-        url ?? `/booking/bookings/?booking_type=${bookingType}`;
+      const endpoint = url ?? `/booking/bookings/?booking_type=${bookingType}`;
       const res: PaginatedResponse<Booking> = await apiFetch(endpoint);
       setBookings(res.results);
       setNextUrl(res.next);
@@ -69,7 +65,6 @@ function BookingsTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingType]);
 
-  const openAdd = () => setModal({ open: true, data: null });
   const openEdit = (booking: Booking) =>
     setModal({ open: true, data: booking });
 
@@ -118,10 +113,6 @@ function BookingsTable({
 
   return (
     <>
-      <div className="flex justify-end mb-4">
-        <Button onClick={openAdd}>Adicionar Nova Marcação</Button>
-      </div>
-
       {loading ? (
         <TableLoader />
       ) : (
@@ -130,7 +121,14 @@ function BookingsTable({
             <TableHeader>
               <TableRow>
                 <TableHead>Booking Title</TableHead>
-                <TableHead>Nome Professor</TableHead>
+                {isPro ? (
+                  <TableHead>Professor</TableHead>
+                ) : (
+                  <>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Professor</TableHead>
+                  </>
+                )}
                 <TableHead>Data Marcação</TableHead>
                 <TableHead>Data Treino</TableHead>
                 <TableHead>Approval</TableHead>
@@ -141,7 +139,7 @@ function BookingsTable({
             <TableBody>
               {bookings.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
+                  <TableCell colSpan={isPro ? 6 : 7} className="text-center">
                     No bookings found
                   </TableCell>
                 </TableRow>
@@ -149,9 +147,29 @@ function BookingsTable({
                 bookings.map((booking) => (
                   <TableRow key={booking.id}>
                     <TableCell>{booking.title}</TableCell>
-                    <TableCell>
-                      {booking.professor_details.full_name}
-                    </TableCell>
+                    {isPro ? (
+                      <TableCell>
+                        {booking.professor_details.full_name}
+                      </TableCell>
+                    ) : (
+                      <>
+                        <TableCell>
+                          {booking.student_details &&
+                          booking.student_details.length > 0 ? (
+                            booking.student_details
+                              .map((s) => s.full_name)
+                              .join(", ")
+                          ) : (
+                            <span className="text-muted-foreground text-sm">
+                              —
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {booking.professor_details.full_name}
+                        </TableCell>
+                      </>
+                    )}
 
                     <TableCell>
                       {new Date(booking.created_at).toLocaleString()}
@@ -193,10 +211,7 @@ function BookingsTable({
                           size="sm"
                           variant="outline"
                           className="border-red-500 text-red-600 hover:bg-red-500 hover:text-white"
-                          disabled={
-                            booking.status !== "cancelled" ||
-                            deleteLoadingId === booking.id
-                          }
+                          disabled={deleteLoadingId === booking.id}
                           onClick={() => handleDeleteBooking(booking.id)}
                         >
                           {deleteLoadingId === booking.id
@@ -262,11 +277,11 @@ export default function BookingsPage() {
         <TabsList>
           <TabsTrigger value="pro" className="flex items-center gap-2">
             <ShieldCheckIcon className="w-4 h-4" />
-            Pro Bookings
+            Professor Bookings
           </TabsTrigger>
           <TabsTrigger value="public" className="flex items-center gap-2">
             <UserCheckIcon className="w-4 h-4" />
-            Public Bookings
+            Student Bookings
           </TabsTrigger>
         </TabsList>
 

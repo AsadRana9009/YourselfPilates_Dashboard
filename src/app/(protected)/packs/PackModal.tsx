@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { createPack, Pack, updatePack } from "@/lib/apiActions";
+import { createPack, getRegions, Pack, updatePack } from "@/lib/apiActions";
+import type { Region } from "@/types/api";
 
 interface PackModalProps {
   open: boolean;
@@ -58,6 +58,8 @@ export function PackModal({
   const [error, setError] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [selectedRegion, setSelectedRegion] = useState<string>("");
 
   const {
     register,
@@ -91,6 +93,12 @@ export function PackModal({
   const isPublicValue = watch("is_public");
 
   useEffect(() => {
+    getRegions()
+      .then(setRegions)
+      .catch(() => setRegions([]));
+  }, []);
+
+  useEffect(() => {
     if (isEdit && initialData) {
       reset({
         title: initialData.title || "",
@@ -101,6 +109,7 @@ export function PackModal({
         creditHours: initialData.total_hours ?? 0,
       });
       setImagePreview(initialData.image || null);
+      setSelectedRegion(initialData.region ? String(initialData.region) : "");
     } else {
       reset({
         title: "",
@@ -111,6 +120,7 @@ export function PackModal({
         creditHours: 0,
       });
       setImagePreview(null);
+      setSelectedRegion("");
     }
     setImageFile(null);
     setError(null);
@@ -177,9 +187,10 @@ export function PackModal({
         is_public: data.is_public,
         price: data.price.toString(),
         total_hours: data.creditHours,
+        region: selectedRegion ? Number(selectedRegion) : null,
         ...(imageFile && { image: imageFile }),
       };
-      console.log("Payload:", payload);
+
       if (isEdit && initialData?.id) {
         await updatePack(Number(initialData.id), payload);
       } else {
@@ -310,6 +321,24 @@ export function PackModal({
               {errors.creditHours.message}
             </span>
           )}
+        </div>
+
+        <div>
+          <Label htmlFor="region">Region</Label>
+          <select
+            id="region"
+            value={selectedRegion}
+            onChange={(e) => setSelectedRegion(e.target.value)}
+            disabled={isSubmitting}
+            className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="">No specific region</option>
+            {regions.map((r) => (
+              <option key={r.id} value={String(r.id)}>
+                {r.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="flex items-center justify-between">

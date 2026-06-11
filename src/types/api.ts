@@ -85,6 +85,22 @@ export interface User {
   role?: string;
 }
 
+export interface Region {
+  id: number;
+  name: string;
+  slug: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface PackRegionPrice {
+  id: number;
+  region: number;
+  region_name: string;
+  region_slug: string;
+  price: string;
+}
+
 export interface Pack {
   id: number;
   title: string;
@@ -94,6 +110,9 @@ export interface Pack {
   target_role?: "professor" | "student";
   active?: boolean;
   is_public?: boolean;
+  region?: number | null;
+  region_name?: string | null;
+  region_prices?: PackRegionPrice[];
 }
 
 export interface Order {
@@ -103,9 +122,11 @@ export interface Order {
   pack_details: {
     title: string;
     total_hours: number;
+    price: string;
   };
   amount: string;
   payment_method: string;
   payment_status: string;
+  region_name: string | null;
   created_at: string;
 }

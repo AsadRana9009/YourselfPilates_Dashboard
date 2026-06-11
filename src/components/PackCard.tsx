@@ -1,6 +1,6 @@
 "use client";
 
-import { ImageIcon, MoreVerticalIcon } from "lucide-react";
+import { ImageIcon, MapPinIcon, MoreVerticalIcon } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 
@@ -113,6 +113,14 @@ export function PackCard({
         <CardTitle className="text-xl font-bold text-foreground">
           {pack.title}
         </CardTitle>
+        {pack.region_name && (
+          <div className="flex items-center gap-1 mt-1">
+            <MapPinIcon className="w-3 h-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">
+              {pack.region_name}
+            </span>
+          </div>
+        )}
         <CardDescription className="text-sm text-muted-foreground mt-1">
           {pack.description}
         </CardDescription>
