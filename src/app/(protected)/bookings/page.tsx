@@ -32,7 +32,7 @@ import { BookingModal } from "./BookingModal";
 type BookingType = "pro" | "public";
 
 function BookingsTable({ bookingType }: { bookingType: BookingType }) {
-  const isPro = bookingType === "pro";
+  // const isPro = bookingType === "pro";
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [nextUrl, setNextUrl] = useState<string | null>(null);
   const [prevUrl, setPrevUrl] = useState<string | null>(null);
@@ -121,14 +121,8 @@ function BookingsTable({ bookingType }: { bookingType: BookingType }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Booking Title</TableHead>
-                {isPro ? (
-                  <TableHead>Professor</TableHead>
-                ) : (
-                  <>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Professor</TableHead>
-                  </>
-                )}
+                <TableHead>Professor</TableHead>
+                <TableHead>Region</TableHead>
                 <TableHead>Data Marcação</TableHead>
                 <TableHead>Data Treino</TableHead>
                 <TableHead>Approval</TableHead>
@@ -139,7 +133,7 @@ function BookingsTable({ bookingType }: { bookingType: BookingType }) {
             <TableBody>
               {bookings.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isPro ? 6 : 7} className="text-center">
+                  <TableCell colSpan={6} className="text-center">
                     No bookings found
                   </TableCell>
                 </TableRow>
@@ -147,29 +141,8 @@ function BookingsTable({ bookingType }: { bookingType: BookingType }) {
                 bookings.map((booking) => (
                   <TableRow key={booking.id}>
                     <TableCell>{booking.title}</TableCell>
-                    {isPro ? (
-                      <TableCell>
-                        {booking.professor_details.full_name}
-                      </TableCell>
-                    ) : (
-                      <>
-                        <TableCell>
-                          {booking.student_details &&
-                          booking.student_details.length > 0 ? (
-                            booking.student_details
-                              .map((s) => s.full_name)
-                              .join(", ")
-                          ) : (
-                            <span className="text-muted-foreground text-sm">
-                              —
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {booking.professor_details.full_name}
-                        </TableCell>
-                      </>
-                    )}
+                    <TableCell>{booking.professor_details.full_name}</TableCell>
+                    <TableCell>{booking.region_name || "-"}</TableCell>
 
                     <TableCell>
                       {new Date(booking.created_at).toLocaleString()}

@@ -281,6 +281,10 @@ export function LoginForm({
 
       const data = await res.json();
 
+      // Set cookie synchronously before navigation so the server-side
+      // ProtectedLayout sees it on the first request to /dashboard
+      document.cookie = `auth-token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}`;
+
       // Use the authStore login function
       login({
         token: data.token,

@@ -12,8 +12,9 @@ import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { TableLoader } from "@/components/ui/TableLoader";
 import { apiFetch } from "@/lib/api";
+import { getRegions } from "@/lib/apiActions";
 import { getTodayDateString } from "@/lib/utils";
-import { Booking, Professor, Slot, Student } from "@/types/api";
+import { Booking, Professor, Region, Slot, Student } from "@/types/api";
 
 const bookingSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -24,6 +25,7 @@ const bookingSchema = z.object({
   time_slot: z.string().min(1, "Time slot is required"),
   notes: z.string().optional(),
   status: z.enum(["pending", "confirmed", "cancelled"]),
+  region: z.number().nullable().optional(),
   // approve: z.boolean().optional(),
 });
 
@@ -48,6 +50,7 @@ export function BookingModal({
   const [professors, setProfessors] = useState<Professor[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
   const [loadingProfessors, setLoadingProfessors] = useState(false);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -77,6 +80,7 @@ export function BookingModal({
             time_slot: initialData.time_slot || "",
             notes: initialData.notes || "",
             status: initialData.status || "confirmed",
+            region: initialData.region ?? null,
           }
         : {
             title: "",
@@ -87,6 +91,7 @@ export function BookingModal({
             time_slot: "",
             notes: "",
             status: "confirmed",
+            region: null,
           },
     [initialData, defaultBookingType]
   );
@@ -107,6 +112,13 @@ export function BookingModal({
   // Watch booking_date and professor for slot and student fetching
   const bookingDate = watch("booking_date");
   const selectedProfessor = watch("professor");
+
+  // Fetch regions on mount
+  useEffect(() => {
+    getRegions()
+      .then(setRegions)
+      .catch(() => setRegions([]));
+  }, []);
 
   // Fetch professors on mount
   useEffect(() => {
@@ -198,6 +210,7 @@ export function BookingModal({
         ...data,
         professor: data.professor,
         students: data.students,
+        region: data.region ?? null,
       };
       if (initialData) {
         await apiFetch(`/booking/bookings/${initialData.id}/`, {
@@ -384,6 +397,32 @@ export function BookingModal({
               {errors.time_slot.message}
             </span>
           )}
+        </div>
+        <div>
+          <Label>Region</Label>
+          <Controller
+            control={control}
+            name="region"
+            render={({ field }) => (
+              <select
+                value={field.value ?? ""}
+                onChange={(e) =>
+                  field.onChange(e.target.value ? Number(e.target.value) : null)
+                }
+                className="w-full border rounded px-3 py-2 dark:bg-black"
+                disabled={formLoading}
+              >
+                <option value="">No specific region</option>
+                {regions
+                  .filter((r) => r.is_active)
+                  .map((r) => (
+                    <option key={r.id} value={r.id} className="dark:bg-black">
+                      {r.name}
+                    </option>
+                  ))}
+              </select>
+            )}
+          />
         </div>
         <div>
           <Label>Notes</Label>

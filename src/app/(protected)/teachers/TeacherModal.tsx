@@ -2,8 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircleIcon, Loader2Icon } from "lucide-react";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api";
-import { Professor } from "@/types/api";
+import { getRegions } from "@/lib/apiActions";
+import { Professor, Region } from "@/types/api";
 
 interface TeacherModalProps {
   open: boolean;
@@ -96,6 +97,7 @@ const commonSchema = z.object({
   state: z.string().optional(),
   country: z.string().optional(),
   zipcode: z.string().optional(),
+  region: z.number().nullable().optional(),
 });
 
 const editSchema = commonSchema.extend({
@@ -119,6 +121,7 @@ const emptyValues: FormValues = {
   state: "",
   country: "",
   zipcode: "",
+  region: null,
 };
 
 function toFormValues(p: Professor): FormValues {
@@ -132,6 +135,7 @@ function toFormValues(p: Professor): FormValues {
     state: p.state ?? "",
     country: p.country ?? "",
     zipcode: p.zipcode ?? "",
+    region: p.region ?? null,
   };
 }
 
@@ -147,18 +151,26 @@ export function TeacherModal({
   initialData,
 }: TeacherModalProps) {
   const isEdit = !!initialData;
+  const [regions, setRegions] = useState<Region[]>([]);
 
   const {
     register,
     handleSubmit,
     reset,
     setError,
+    control,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(editSchema),
     mode: "onBlur",
     defaultValues: emptyValues as FormValues,
   });
+
+  useEffect(() => {
+    getRegions()
+      .then(setRegions)
+      .catch(() => setRegions([]));
+  }, []);
 
   useEffect(() => {
     reset(
@@ -179,6 +191,7 @@ export function TeacherModal({
       state: data.state || "",
       country: data.country || "",
       zipcode: data.zipcode || "",
+      region: data.region ?? null,
     };
     if (data.password) payload.password = data.password;
 
@@ -362,6 +375,33 @@ export function TeacherModal({
             placeholder="e.g. Rua das Flores, 12"
             disabled={isSubmitting}
             {...register("street")}
+          />
+        </div>
+        <div>
+          <Label htmlFor="region">Region</Label>
+          <Controller
+            control={control}
+            name="region"
+            render={({ field }) => (
+              <select
+                id="region"
+                value={field.value ?? ""}
+                onChange={(e) =>
+                  field.onChange(e.target.value ? Number(e.target.value) : null)
+                }
+                className="w-full border rounded px-3 py-2 dark:bg-black"
+                disabled={isSubmitting}
+              >
+                <option value="">No specific region</option>
+                {regions
+                  .filter((r) => r.is_active)
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+              </select>
+            )}
           />
         </div>
         <div className="flex gap-3 pt-2">

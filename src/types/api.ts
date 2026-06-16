@@ -13,6 +13,8 @@ export interface Student {
   bio: string | null;
   contact_number: string | null;
   photo: string | null;
+  region?: number | null;
+  region_name?: string | null;
 }
 
 export interface Professor {
@@ -37,6 +39,8 @@ export interface Professor {
   total_purchased_hours?: number | string;
   remaining_hours?: number;
   used_hours?: number;
+  region?: number | null;
+  region_name?: string | null;
 }
 
 export interface Slot {
@@ -60,6 +64,8 @@ export interface Booking {
   updated_at?: string;
   approve: boolean;
   student_details?: { id: number; full_name: string; email: string }[];
+  region?: number | null;
+  region_name?: string | null;
 }
 
 export interface Video {

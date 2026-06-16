@@ -38,7 +38,7 @@ import { TableLoader } from "@/components/ui/TableLoader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiFetch } from "@/lib/api";
 import { deleteProfessor } from "@/lib/apiActions";
-import { PaginatedResponse, Professor, Student } from "@/types/api";
+import { PaginatedResponse, Professor } from "@/types/api";
 
 import { TeacherModal } from "./TeacherModal";
 
@@ -161,6 +161,7 @@ interface ProfessorTableProps {
   onPrev: () => void;
   onNext: () => void;
   emptyMessage: string;
+  isPro?: boolean;
 }
 
 function ProfessorTable({
@@ -177,6 +178,7 @@ function ProfessorTable({
   onPrev,
   onNext,
   emptyMessage,
+  isPro = false,
 }: ProfessorTableProps) {
   if (loading) return <TableLoader />;
 
@@ -188,8 +190,7 @@ function ProfessorTable({
             <TableHead>Email</TableHead>
             <TableHead>Full Name</TableHead>
             <TableHead>Role</TableHead>
-            <TableHead>City</TableHead>
-            <TableHead>Students</TableHead>
+            {!isPro && <TableHead>Region</TableHead>}
             <TableHead>Contact</TableHead>
             <TableHead>Purchased Hrs</TableHead>
             <TableHead>Remaining Hrs</TableHead>
@@ -203,7 +204,7 @@ function ProfessorTable({
           {professors.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={12}
+                colSpan={isPro ? 10 : 11}
                 className="text-center py-10 text-muted-foreground"
               >
                 {emptyMessage}
@@ -215,23 +216,7 @@ function ProfessorTable({
                 <TableCell>{prof.email}</TableCell>
                 <TableCell>{prof.full_name}</TableCell>
                 <TableCell>{prof.role}</TableCell>
-                <TableCell>{prof.city || "-"}</TableCell>
-                <TableCell>
-                  {(prof.students as Student[])?.length ? (
-                    <div className="max-h-24 overflow-y-auto space-y-1 pr-2">
-                      {(prof.students as Student[]).map((s) => (
-                        <div
-                          key={s.id}
-                          className="bg-muted rounded px-2 py-1 text-xs"
-                        >
-                          {s.full_name}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    "-"
-                  )}
-                </TableCell>
+                {!isPro && <TableCell>{prof.region_name || "-"}</TableCell>}
                 <TableCell>{prof.contact_number || "-"}</TableCell>
                 <TableCell>{prof.total_purchased_hours ?? "-"}</TableCell>
                 <TableCell>{prof.remaining_hours ?? "-"}</TableCell>
@@ -430,7 +415,7 @@ export default function TeachersPage() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6 mx-2">
         <h2 className="text-2xl font-bold">Professors</h2>
-        {activeTab === "pro" && (
+        {activeTab === "public" && (
           <Button onClick={openAdd}>Add Professor</Button>
         )}
       </div>
@@ -462,8 +447,7 @@ export default function TeachersPage() {
 
         <TabsContent value="pro">
           <p className="text-sm text-muted-foreground mb-3">
-            Professors created by the admin. Only visible here — not on the
-            public site.
+            Professors who signed up themselves through the public site.
           </p>
           <ProfessorTable
             professors={pro.professors}
@@ -478,13 +462,15 @@ export default function TeachersPage() {
             onTopUp={openTopUp}
             onPrev={() => pro.fetch(pro.prevUrl!)}
             onNext={() => pro.fetch(pro.nextUrl!)}
-            emptyMessage="No pro professors yet. Use 'Add Professor' to create one."
+            emptyMessage="No pro professors yet. They will appear here when professors sign up themselves."
+            isPro
           />
         </TabsContent>
 
         <TabsContent value="public">
           <p className="text-sm text-muted-foreground mb-3">
-            Professors who signed up themselves through the public site.
+            Professors created by the admin. Use &apos;Add Professor&apos; to
+            create one.
           </p>
           <ProfessorTable
             professors={pub.professors}
@@ -499,7 +485,7 @@ export default function TeachersPage() {
             onTopUp={openTopUp}
             onPrev={() => pub.fetch(pub.prevUrl!)}
             onNext={() => pub.fetch(pub.nextUrl!)}
-            emptyMessage="No public professors yet. They will appear here when professors sign up themselves."
+            emptyMessage="No public professors yet. Use 'Add Professor' to create one."
           />
         </TabsContent>
       </Tabs>

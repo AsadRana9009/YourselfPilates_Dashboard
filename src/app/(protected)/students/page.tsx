@@ -99,6 +99,7 @@ function StudentTable({
             <TableHead>Email</TableHead>
             <TableHead>Full Name</TableHead>
             <TableHead>Contact Number</TableHead>
+            <TableHead>Region</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -106,7 +107,7 @@ function StudentTable({
         <TableBody>
           {students.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={4} className="text-center">
+              <TableCell colSpan={5} className="text-center">
                 No students found
               </TableCell>
             </TableRow>
@@ -116,6 +117,7 @@ function StudentTable({
                 <TableCell>{student.email}</TableCell>
                 <TableCell>{student.full_name}</TableCell>
                 <TableCell>{student.contact_number || "-"}</TableCell>
+                <TableCell>{student.region_name || "-"}</TableCell>
 
                 <TableCell>
                   <div className="flex gap-2">
