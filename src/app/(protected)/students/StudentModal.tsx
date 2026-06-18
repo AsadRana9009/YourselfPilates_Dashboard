@@ -20,7 +20,7 @@ interface StudentModalProps {
   initialData?: Student | null;
 }
 
-const studentSchema = z.object({
+const proStudentSchema = z.object({
   professor: z
     .number({ required_error: "Professor is required" })
     .refine((val) => val !== 0, { message: "Professor is required" }),
@@ -30,7 +30,15 @@ const studentSchema = z.object({
   region: z.number().nullable().optional(),
 });
 
-type StudentFormValues = z.infer<typeof studentSchema>;
+const publicStudentSchema = z.object({
+  professor: z.number().nullable().optional(),
+  full_name: z.string().min(1, "Full name is required"),
+  email: z.string().email({ message: "Invalid email address" }),
+  contact_number: z.string().min(1, "Contact number is required"),
+  region: z.number().nullable().optional(),
+});
+
+type StudentFormValues = z.infer<typeof publicStudentSchema>;
 
 export function StudentModal({
   open,
@@ -39,6 +47,7 @@ export function StudentModal({
   initialData,
 }: StudentModalProps) {
   const isEdit = !!initialData;
+  const isPublicStudent = isEdit && !!initialData?.is_public;
   const [professors, setProfessors] = useState<Professor[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
   const [loadingProfessors, setLoadingProfessors] = useState(false);
@@ -51,7 +60,7 @@ export function StudentModal({
     control,
     formState: { errors, isSubmitting },
   } = useForm<StudentFormValues>({
-    resolver: zodResolver(studentSchema),
+    resolver: zodResolver(isPublicStudent ? publicStudentSchema : proStudentSchema),
     defaultValues: isEdit
       ? {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,7 +129,7 @@ export function StudentModal({
     setError(null);
     try {
       const payload = {
-        professor: data.professor,
+        ...(isPublicStudent ? {} : { professor: data.professor }),
         full_name: data.full_name,
         email: data.email,
         contact_number: data.contact_number,
@@ -151,34 +160,36 @@ export function StudentModal({
       title={isEdit ? "Edit Student" : "Add Student"}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div>
-          <Label>Professor</Label>
-          <Controller
-            control={control}
-            name="professor"
-            render={({ field }) => (
-              <select
-                {...field}
-                onChange={(e) => field.onChange(Number(e.target.value))}
-                value={field.value}
-                className="w-full border rounded px-3 py-2 dark:bg-black"
-                disabled={loadingProfessors || isSubmitting}
-              >
-                <option value={0}>Select Professor</option>
-                {professors.map((prof) => (
-                  <option key={prof.id} value={prof.id}>
-                    {prof.full_name}
-                  </option>
-                ))}
-              </select>
+        {!isPublicStudent && (
+          <div>
+            <Label>Professor</Label>
+            <Controller
+              control={control}
+              name="professor"
+              render={({ field }) => (
+                <select
+                  {...field}
+                  onChange={(e) => field.onChange(Number(e.target.value))}
+                  value={field.value ?? 0}
+                  className="w-full border rounded px-3 py-2 dark:bg-black"
+                  disabled={loadingProfessors || isSubmitting}
+                >
+                  <option value={0}>Select Professor</option>
+                  {professors.map((prof) => (
+                    <option key={prof.id} value={prof.id}>
+                      {prof.full_name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            />
+            {errors.professor && (
+              <span className="text-red-500 text-xs">
+                {errors.professor.message as string}
+              </span>
             )}
-          />
-          {errors.professor && (
-            <span className="text-red-500 text-xs">
-              {errors.professor.message as string}
-            </span>
-          )}
-        </div>
+          </div>
+        )}
         <div>
           <Label>Full Name</Label>
           <Input {...register("full_name")} />

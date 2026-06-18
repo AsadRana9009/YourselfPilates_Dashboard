@@ -13,9 +13,12 @@ export interface Student {
   bio: string | null;
   contact_number: string | null;
   photo: string | null;
+  is_public?: boolean;
   region?: number | null;
   region_name?: string | null;
+  purchased_hours?: number;
   remaining_hours?: number;
+  used_hours?: number;
 }
 
 export interface Professor {

@@ -74,6 +74,7 @@ function StudentTable({
   deleteLoadingId,
   prevUrl,
   nextUrl,
+  isPublic,
   onEdit,
   onDelete,
   onPrev,
@@ -84,12 +85,15 @@ function StudentTable({
   deleteLoadingId: number | null;
   prevUrl: string | null;
   nextUrl: string | null;
+  isPublic: boolean;
   onEdit: (_student: Student) => void;
   onDelete: (_student: Student) => void;
   onPrev: () => void;
   onNext: () => void;
 }) {
   if (loading) return <TableLoader />;
+
+  const colSpan = isPublic ? 8 : 5;
 
   return (
     <>
@@ -100,6 +104,13 @@ function StudentTable({
             <TableHead>Full Name</TableHead>
             <TableHead>Contact Number</TableHead>
             <TableHead>Region</TableHead>
+            {isPublic && (
+              <>
+                <TableHead>Purchased Hrs</TableHead>
+                <TableHead>Remaining Hrs</TableHead>
+                <TableHead>Used Hrs</TableHead>
+              </>
+            )}
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -107,7 +118,7 @@ function StudentTable({
         <TableBody>
           {students.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center">
+              <TableCell colSpan={colSpan} className="text-center">
                 No students found
               </TableCell>
             </TableRow>
@@ -118,6 +129,13 @@ function StudentTable({
                 <TableCell>{student.full_name}</TableCell>
                 <TableCell>{student.contact_number || "-"}</TableCell>
                 <TableCell>{student.region_name || "-"}</TableCell>
+                {isPublic && (
+                  <>
+                    <TableCell>{student.purchased_hours ?? 0}</TableCell>
+                    <TableCell>{student.remaining_hours ?? 0}</TableCell>
+                    <TableCell>{student.used_hours ?? 0}</TableCell>
+                  </>
+                )}
 
                 <TableCell>
                   <div className="flex gap-2">
@@ -272,6 +290,7 @@ export default function StudentsPage() {
             deleteLoadingId={deleteLoadingId}
             prevUrl={pro.prevUrl}
             nextUrl={pro.nextUrl}
+            isPublic={false}
             onEdit={openEdit}
             onDelete={handleDeleteStudent}
             onPrev={() => pro.fetchStudents(pro.prevUrl!)}
@@ -286,6 +305,7 @@ export default function StudentsPage() {
             deleteLoadingId={deleteLoadingId}
             prevUrl={pub.prevUrl}
             nextUrl={pub.nextUrl}
+            isPublic={true}
             onEdit={openEdit}
             onDelete={handleDeleteStudent}
             onPrev={() => pub.fetchStudents(pub.prevUrl!)}
