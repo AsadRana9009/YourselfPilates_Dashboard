@@ -2,7 +2,6 @@
 
 import {
   PencilIcon,
-  PlusCircleIcon,
   ShieldCheckIcon,
   UserCheckIcon,
 } from "lucide-react";
@@ -11,14 +10,6 @@ import swal from "sweetalert";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Pagination,
   PaginationContent,
@@ -42,111 +33,6 @@ import { PaginatedResponse, Professor } from "@/types/api";
 
 import { TeacherModal } from "./TeacherModal";
 
-// ── Top Up Hours modal ────────────────────────────────────────────────────────
-function TopUpModal({
-  professor,
-  open,
-  onOpenChange,
-  onSuccess,
-}: {
-  professor: Professor | null;
-  open: boolean;
-  onOpenChange: (_value: boolean) => void;
-  onSuccess: () => void;
-}) {
-  const [hours, setHours] = useState("");
-  const [mode, setMode] = useState<"add" | "set">("add");
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setHours("");
-      setMode("add");
-    }
-  }, [open]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const n = parseInt(hours);
-    if (isNaN(n) || n < 0) {
-      swal("Error", "Enter a valid non-negative number of hours.", "error");
-      return;
-    }
-    setLoading(true);
-    try {
-      await apiFetch(`/user/users/${professor!.id}/top_up_hours/`, {
-        method: "POST",
-        body: JSON.stringify({ hours: n, mode }),
-      });
-      swal(
-        "Done!",
-        `Hours ${mode === "set" ? "set to" : "added:"} ${n} for ${professor!.full_name}.`,
-        "success"
-      );
-      onSuccess();
-      onOpenChange(false);
-    } catch (err) {
-      swal(
-        "Error",
-        (err as Error)?.message || "Failed to update hours.",
-        "error"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Top Up Hours — {professor?.full_name}</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground mb-2">
-          Current remaining:{" "}
-          <strong>{professor?.remaining_hours ?? 0} hrs</strong>
-        </p>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1">
-            <Label>Mode</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm dark:bg-black"
-              value={mode}
-              onChange={(e) => setMode(e.target.value as "add" | "set")}
-            >
-              <option value="add">Add hours (on top of existing)</option>
-              <option value="set">Set hours (overwrite to exact value)</option>
-            </select>
-          </div>
-          <div className="space-y-1">
-            <Label>Hours</Label>
-            <Input
-              type="number"
-              min={0}
-              value={hours}
-              onChange={(e) => setHours(e.target.value)}
-              placeholder="e.g. 10"
-              required
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : "Save"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 interface ProfessorTableProps {
   professors: Professor[];
   loading: boolean;
@@ -157,7 +43,6 @@ interface ProfessorTableProps {
   onEdit: (_p: Professor) => void;
   onApproval: (_id: number, _approve: boolean) => void;
   onDelete: (_p: Professor) => void;
-  onTopUp: (_p: Professor) => void;
   onPrev: () => void;
   onNext: () => void;
   emptyMessage: string;
@@ -174,7 +59,6 @@ function ProfessorTable({
   onEdit,
   onApproval,
   onDelete,
-  onTopUp,
   onPrev,
   onNext,
   emptyMessage,
@@ -189,12 +73,11 @@ function ProfessorTable({
           <TableRow>
             <TableHead>Email</TableHead>
             <TableHead>Full Name</TableHead>
-            <TableHead>Role</TableHead>
             {!isPro && <TableHead>Region</TableHead>}
             <TableHead>Contact</TableHead>
-            <TableHead>Purchased Hrs</TableHead>
-            <TableHead>Remaining Hrs</TableHead>
-            <TableHead>Used Hrs</TableHead>
+            {isPro && <TableHead>Purchased Hrs</TableHead>}
+            {isPro && <TableHead>Remaining Hrs</TableHead>}
+            {isPro && <TableHead>Used Hrs</TableHead>}
             <TableHead>Status</TableHead>
             <TableHead>Approval</TableHead>
             <TableHead>Actions</TableHead>
@@ -204,7 +87,7 @@ function ProfessorTable({
           {professors.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={isPro ? 10 : 11}
+                colSpan={isPro ? 10 : 8}
                 className="text-center py-10 text-muted-foreground"
               >
                 {emptyMessage}
@@ -215,12 +98,11 @@ function ProfessorTable({
               <TableRow key={prof.id}>
                 <TableCell>{prof.email}</TableCell>
                 <TableCell>{prof.full_name}</TableCell>
-                <TableCell>{prof.role}</TableCell>
                 {!isPro && <TableCell>{prof.region_name || "-"}</TableCell>}
                 <TableCell>{prof.contact_number || "-"}</TableCell>
-                <TableCell>{prof.total_purchased_hours ?? "-"}</TableCell>
-                <TableCell>{prof.remaining_hours ?? "-"}</TableCell>
-                <TableCell>{prof.used_hours ?? "-"}</TableCell>
+                {isPro && <TableCell>{prof.total_purchased_hours ?? "-"}</TableCell>}
+                {isPro && <TableCell>{prof.remaining_hours ?? "-"}</TableCell>}
+                {isPro && <TableCell>{prof.used_hours ?? "-"}</TableCell>}
                 <TableCell>
                   {prof.is_active ? (
                     <Badge className="bg-green-500 text-white">Active</Badge>
@@ -250,14 +132,6 @@ function ProfessorTable({
                       onClick={() => onEdit(prof)}
                     >
                       <PencilIcon className="w-4 h-4" /> Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-green-500 text-green-600 hover:bg-green-500 hover:text-white"
-                      onClick={() => onTopUp(prof)}
-                    >
-                      <PlusCircleIcon className="w-4 h-4 mr-1" /> Top Up
                     </Button>
                     <Button
                       size="sm"
@@ -345,13 +219,6 @@ export default function TeachersPage() {
       data: null,
     }
   );
-  const [topUpModal, setTopUpModal] = useState<{
-    open: boolean;
-    data: Professor | null;
-  }>({
-    open: false,
-    data: null,
-  });
   const [activeTab, setActiveTab] = useState<"pro" | "public">("pro");
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [deleteLoadingId, setDeleteLoadingId] = useState<number | null>(null);
@@ -360,7 +227,6 @@ export default function TeachersPage() {
 
   const openAdd = () => setModal({ open: true, data: null });
   const openEdit = (p: Professor) => setModal({ open: true, data: p });
-  const openTopUp = (p: Professor) => setTopUpModal({ open: true, data: p });
 
   const handleApproval = async (userId: number, approve: boolean) => {
     setActionLoadingId(userId);
@@ -459,7 +325,7 @@ export default function TeachersPage() {
             onEdit={openEdit}
             onApproval={handleApproval}
             onDelete={handleDelete}
-            onTopUp={openTopUp}
+
             onPrev={() => pro.fetch(pro.prevUrl!)}
             onNext={() => pro.fetch(pro.nextUrl!)}
             emptyMessage="No pro professors yet. They will appear here when professors sign up themselves."
@@ -482,7 +348,7 @@ export default function TeachersPage() {
             onEdit={openEdit}
             onApproval={handleApproval}
             onDelete={handleDelete}
-            onTopUp={openTopUp}
+
             onPrev={() => pub.fetch(pub.prevUrl!)}
             onNext={() => pub.fetch(pub.nextUrl!)}
             emptyMessage="No public professors yet. Use 'Add Professor' to create one."
@@ -502,17 +368,6 @@ export default function TeachersPage() {
         initialData={modal.data}
       />
 
-      <TopUpModal
-        open={topUpModal.open}
-        onOpenChange={(open) =>
-          setTopUpModal({ open, data: open ? topUpModal.data : null })
-        }
-        professor={topUpModal.data}
-        onSuccess={() => {
-          pro.fetch();
-          pub.fetch();
-        }}
-      />
     </div>
   );
 }

@@ -188,6 +188,7 @@ export interface Pack {
   image: string | null;
   active: boolean;
   is_public: boolean;
+  target_role: "professor" | "student";
   price: string;
   total_hours?: number;
   region?: number | null;

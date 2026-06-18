@@ -15,6 +15,7 @@ export interface Student {
   photo: string | null;
   region?: number | null;
   region_name?: string | null;
+  remaining_hours?: number;
 }
 
 export interface Professor {

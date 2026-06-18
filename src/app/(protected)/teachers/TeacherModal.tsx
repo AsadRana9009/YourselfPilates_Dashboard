@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircleIcon, Loader2Icon } from "lucide-react";
+import { AlertCircleIcon, Eye, EyeOff, Loader2Icon, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -144,6 +144,18 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-red-500 text-xs mt-1">{message}</p>;
 }
 
+function generateStrongPassword(): string {
+  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const lower = "abcdefghijklmnopqrstuvwxyz";
+  const digits = "0123456789";
+  const special = "!@#$%^&*";
+  const all = upper + lower + digits + special;
+  const pick = (s: string) => s[Math.floor(Math.random() * s.length)];
+  const chars = [pick(upper), pick(lower), pick(digits), pick(special)];
+  for (let i = 4; i < 14; i++) chars.push(pick(all));
+  return chars.sort(() => Math.random() - 0.5).join("");
+}
+
 export function TeacherModal({
   open,
   onOpenChange,
@@ -152,12 +164,15 @@ export function TeacherModal({
 }: TeacherModalProps) {
   const isEdit = !!initialData;
   const [regions, setRegions] = useState<Region[]>([]);
+  const [showPassword, setShowPassword] = useState(false);
+  const [pwCopied, setPwCopied] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
     setError,
+    setValue,
     control,
     formState: { errors, isSubmitting },
   } = useForm({
@@ -185,6 +200,7 @@ export function TeacherModal({
       email: data.email,
       full_name: data.full_name.trim(),
       role: "professor",
+      is_public: true,
       contact_number: data.contact_number || "",
       street: data.street || "",
       city: data.city || "",
@@ -300,20 +316,48 @@ export function TeacherModal({
             {isEdit ? "New Password" : "Password"}{" "}
             {!isEdit && <span className="text-red-500">*</span>}
           </Label>
-          <Input
-            id="password"
-            type="password"
-            placeholder={
-              isEdit
-                ? "Leave blank to keep current password"
-                : "Min. 6 characters"
-            }
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder={
+                isEdit
+                  ? "Leave blank to keep current password"
+                  : "Min. 6 characters"
+              }
+              disabled={isSubmitting}
+              {...register("password")}
+              className={
+                (errors.password ? "border-red-500 focus-visible:ring-red-400" : "") +
+                " pr-10"
+              }
+            />
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          <button
+            type="button"
             disabled={isSubmitting}
-            {...register("password")}
-            className={
-              errors.password ? "border-red-500 focus-visible:ring-red-400" : ""
-            }
-          />
+            onClick={() => {
+              const pw = generateStrongPassword();
+              setValue("password", pw, { shouldValidate: true });
+              setShowPassword(true);
+              navigator.clipboard?.writeText(pw).then(() => {
+                setPwCopied(true);
+                setTimeout(() => setPwCopied(false), 2000);
+              });
+            }}
+            className="mt-1 flex items-center gap-1 text-xs font-medium text-blue-500 hover:text-blue-700 disabled:opacity-50"
+          >
+            <RefreshCw size={11} />
+            {pwCopied ? "Copied to clipboard!" : "Suggest a strong password"}
+          </button>
           <FieldError message={errors.password?.message} />
         </div>
         <div>

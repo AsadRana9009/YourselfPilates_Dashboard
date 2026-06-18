@@ -47,7 +47,7 @@ function BookingsTable({ bookingType }: { bookingType: BookingType }) {
   async function fetchBookings(url?: string) {
     setLoading(true);
     try {
-      const endpoint = url ?? `/booking/bookings/?booking_type=${bookingType}`;
+      const endpoint = url ?? `/booking/bookings/?booking_type=${bookingType}&ordering=-created_at`;
       const res: PaginatedResponse<Booking> = await apiFetch(endpoint);
       setBookings(res.results);
       setNextUrl(res.next);

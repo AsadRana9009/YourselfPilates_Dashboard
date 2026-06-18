@@ -5,6 +5,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import * as z from "zod";
 
+import { toast } from "sonner";
+
 import { ControlledDrawerDialog } from "@/components/ModalDrawer/ModalDrawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -203,6 +205,28 @@ export function BookingModal({
   }, [initialData, open, reset, defaultValues]);
 
   async function onSubmit(data: BookingFormValues) {
+    // Check credits before submitting
+    if (data.booking_type === "pro") {
+      const prof = professors.find((p) => p.id === data.professor);
+      if (prof && (prof.remaining_hours ?? 0) <= 0) {
+        toast.error("This professor has no remaining hours. Please buy a pack first.", {
+          duration: 5000,
+        });
+        return;
+      }
+    } else if (data.booking_type === "public") {
+      const noCredits = students.filter(
+        (s) => data.students.includes(s.id) && (s.remaining_hours ?? -1) === 0
+      );
+      if (noCredits.length > 0) {
+        const names = noCredits.map((s) => s.full_name).join(", ");
+        toast.error(`The following students have no remaining hours: ${names}. Please buy a pack first.`, {
+          duration: 6000,
+        });
+        return;
+      }
+    }
+
     setError(null);
     setFormLoading(true);
     try {
