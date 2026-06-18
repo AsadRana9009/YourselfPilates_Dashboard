@@ -1,7 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircleIcon, Eye, EyeOff, Loader2Icon, RefreshCw } from "lucide-react";
+import {
+  AlertCircleIcon,
+  Eye,
+  EyeOff,
+  Loader2Icon,
+  RefreshCw,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -328,8 +334,9 @@ export function TeacherModal({
               disabled={isSubmitting}
               {...register("password")}
               className={
-                (errors.password ? "border-red-500 focus-visible:ring-red-400" : "") +
-                " pr-10"
+                (errors.password
+                  ? "border-red-500 focus-visible:ring-red-400"
+                  : "") + " pr-10"
               }
             />
             <button

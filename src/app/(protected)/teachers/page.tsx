@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  PencilIcon,
-  ShieldCheckIcon,
-  UserCheckIcon,
-} from "lucide-react";
+import { PencilIcon, ShieldCheckIcon, UserCheckIcon } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import swal from "sweetalert";
 
@@ -100,7 +96,9 @@ function ProfessorTable({
                 <TableCell>{prof.full_name}</TableCell>
                 {!isPro && <TableCell>{prof.region_name || "-"}</TableCell>}
                 <TableCell>{prof.contact_number || "-"}</TableCell>
-                {isPro && <TableCell>{prof.total_purchased_hours ?? "-"}</TableCell>}
+                {isPro && (
+                  <TableCell>{prof.total_purchased_hours ?? "-"}</TableCell>
+                )}
                 {isPro && <TableCell>{prof.remaining_hours ?? "-"}</TableCell>}
                 {isPro && <TableCell>{prof.used_hours ?? "-"}</TableCell>}
                 <TableCell>
@@ -325,7 +323,6 @@ export default function TeachersPage() {
             onEdit={openEdit}
             onApproval={handleApproval}
             onDelete={handleDelete}
-
             onPrev={() => pro.fetch(pro.prevUrl!)}
             onNext={() => pro.fetch(pro.nextUrl!)}
             emptyMessage="No pro professors yet. They will appear here when professors sign up themselves."
@@ -348,7 +345,6 @@ export default function TeachersPage() {
             onEdit={openEdit}
             onApproval={handleApproval}
             onDelete={handleDelete}
-
             onPrev={() => pub.fetch(pub.prevUrl!)}
             onNext={() => pub.fetch(pub.nextUrl!)}
             emptyMessage="No public professors yet. Use 'Add Professor' to create one."
@@ -367,7 +363,6 @@ export default function TeachersPage() {
         }}
         initialData={modal.data}
       />
-
     </div>
   );
 }

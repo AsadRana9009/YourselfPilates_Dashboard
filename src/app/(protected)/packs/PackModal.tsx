@@ -78,7 +78,9 @@ export function PackModal({
           price: initialData?.price ? parseFloat(initialData.price) : 0,
           active: initialData?.active ?? true,
           is_public: initialData?.is_public ?? false,
-          target_role: (initialData?.target_role as "professor" | "student") ?? "professor",
+          target_role:
+            (initialData?.target_role as "professor" | "student") ??
+            "professor",
           creditHours: initialData?.total_hours ?? 0,
         }
       : {
@@ -109,7 +111,8 @@ export function PackModal({
         price: initialData.price ? parseFloat(initialData.price) : 0,
         active: initialData.active ?? true,
         is_public: initialData.is_public ?? false,
-        target_role: (initialData.target_role as "professor" | "student") ?? "professor",
+        target_role:
+          (initialData.target_role as "professor" | "student") ?? "professor",
         creditHours: initialData.total_hours ?? 0,
       });
       setImagePreview(initialData.image || null);

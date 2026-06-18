@@ -3,9 +3,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import React, { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import * as z from "zod";
-
 import { toast } from "sonner";
+import * as z from "zod";
 
 import { ControlledDrawerDialog } from "@/components/ModalDrawer/ModalDrawer";
 import { Button } from "@/components/ui/button";
@@ -209,9 +208,12 @@ export function BookingModal({
     if (data.booking_type === "pro") {
       const prof = professors.find((p) => p.id === data.professor);
       if (prof && (prof.remaining_hours ?? 0) <= 0) {
-        toast.error("This professor has no remaining hours. Please buy a pack first.", {
-          duration: 5000,
-        });
+        toast.error(
+          "This professor has no remaining hours. Please buy a pack first.",
+          {
+            duration: 5000,
+          }
+        );
         return;
       }
     } else if (data.booking_type === "public") {
@@ -220,9 +222,12 @@ export function BookingModal({
       );
       if (noCredits.length > 0) {
         const names = noCredits.map((s) => s.full_name).join(", ");
-        toast.error(`The following students have no remaining hours: ${names}. Please buy a pack first.`, {
-          duration: 6000,
-        });
+        toast.error(
+          `The following students have no remaining hours: ${names}. Please buy a pack first.`,
+          {
+            duration: 6000,
+          }
+        );
         return;
       }
     }

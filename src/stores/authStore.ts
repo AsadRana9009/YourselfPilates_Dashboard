@@ -22,7 +22,7 @@ interface AuthState {
     role: string;
     user_id: string;
   }) => void;
-  // eslint-disable-next-line no-unused-vars
+
   logout: (_redirect?: boolean) => void;
   // eslint-disable-next-line
   setToken: (token: string) => void;
