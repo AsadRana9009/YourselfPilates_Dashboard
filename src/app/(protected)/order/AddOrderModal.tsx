@@ -1,25 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import swal from "sweetalert";
+
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api";
-import { User, Pack } from "@/types/api";
+import { getRegions } from "@/lib/apiActions";
+import type { Pack, Region, User } from "@/types/api";
 
 type AddOrderModalProps = {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (_value: boolean) => void;
   onSuccess: () => void;
-  ownerRole: "pro" | "public"; // "pro" maps to professor/teacher, "public" to student
+  ownerRole: "pro" | "public";
 };
+
+const SELECT_CLASS =
+  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring";
 
 export function AddOrderModal({
   open,
@@ -30,60 +34,73 @@ export function AddOrderModal({
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [packs, setPacks] = useState<Pack[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
 
-  const [selectedUser, setSelectedUser] = useState<string>("");
-  const [selectedPack, setSelectedPack] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<string>("manual");
-  const [paymentStatus, setPaymentStatus] = useState<string>("Pago");
+  const [selectedUser, setSelectedUser] = useState("");
+  const [selectedPack, setSelectedPack] = useState("");
+  const [selectedRegion, setSelectedRegion] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("manual");
+  const [paymentStatus, setPaymentStatus] = useState("Pago");
 
   useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const roleQuery = ownerRole === "pro" ? "professor" : "student";
+        const res = await apiFetch(
+          `/user/users/?role=${roleQuery}&show_all=true`
+        );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data = res as any;
+        setUsers((data.results ?? (Array.isArray(data) ? data : [])) as User[]);
+      } catch {
+        setUsers([]);
+      }
+    };
+
+    const fetchPacks = async () => {
+      try {
+        const res = await apiFetch("/subscriptions/packs/?show_all=true");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const d = res as any;
+        const all: Pack[] = (d.results ??
+          (Array.isArray(d) ? d : [])) as Pack[];
+        setPacks(
+          all.filter((p) =>
+            ownerRole === "pro"
+              ? p.target_role === "professor"
+              : p.target_role === "student"
+          )
+        );
+      } catch {
+        setPacks([]);
+      }
+    };
+
     if (open) {
       fetchUsers();
       fetchPacks();
+      getRegions()
+        .then(setRegions)
+        .catch(() => setRegions([]));
     } else {
       setSelectedUser("");
       setSelectedPack("");
+      setSelectedRegion("");
       setPaymentMethod("manual");
       setPaymentStatus("Pago");
     }
   }, [open, ownerRole]);
 
-  const fetchUsers = async () => {
-    try {
-      // For "pro" we fetch professors, for "public" we fetch students
-      const roleQuery = ownerRole === "pro" ? "professor" : "student";
-      const res: any = await apiFetch(`/user/users/?role=${roleQuery}&show_all=true`);
-      if (res.results) {
-        setUsers(res.results);
-      } else if (Array.isArray(res)) {
-        setUsers(res);
-      }
-    } catch (error) {
-      console.error("Failed to fetch users", error);
-    }
-  };
+  // Find the selected pack to show region-specific price hint
+  const activePack = packs.find((p) => String(p.id) === selectedPack);
+  const regionPrice = activePack?.region_prices?.find(
+    (rp) => String(rp.region) === selectedRegion
+  );
+  const effectivePrice = regionPrice
+    ? regionPrice.price
+    : (activePack?.price ?? null);
 
-  const fetchPacks = async () => {
-    try {
-      const res: any = await apiFetch(`/subscriptions/packs/?show_all=true`);
-      if (res.results) {
-        // filter packs by role if needed
-        const filteredPacks = res.results.filter((pack: Pack) => 
-          ownerRole === "pro" ? pack.target_role === "professor" : pack.target_role === "student"
-        );
-        setPacks(filteredPacks);
-      } else if (Array.isArray(res)) {
-        const filteredPacks = res.filter((pack: Pack) => 
-          ownerRole === "pro" ? pack.target_role === "professor" : pack.target_role === "student"
-        );
-        setPacks(filteredPacks);
-      }
-    } catch (error) {
-      console.error("Failed to fetch packs", error);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedUser || !selectedPack) {
       swal("Error", "Please select both a user and a pack.", "error");
@@ -99,13 +116,18 @@ export function AddOrderModal({
           pack_id: selectedPack,
           payment_method: paymentMethod,
           payment_status: paymentStatus,
+          ...(selectedRegion ? { region_id: Number(selectedRegion) } : {}),
         }),
       });
       swal("Success", "Order created successfully!", "success");
       onSuccess();
       onOpenChange(false);
-    } catch (error: any) {
-      swal("Error", error.message || "Failed to create order.", "error");
+    } catch (error) {
+      swal(
+        "Error",
+        (error as Error).message || "Failed to create order.",
+        "error"
+      );
     } finally {
       setLoading(false);
     }
@@ -115,19 +137,25 @@ export function AddOrderModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add {ownerRole === "pro" ? "Pro" : "Public"} Order</DialogTitle>
+          <DialogTitle>
+            Add {ownerRole === "pro" ? "Pro" : "Public"} Order
+          </DialogTitle>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* User */}
           <div className="space-y-2">
             <Label htmlFor="user">User</Label>
             <select
               id="user"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+              className={SELECT_CLASS}
               value={selectedUser}
               onChange={(e) => setSelectedUser(e.target.value)}
               required
             >
-              <option value="" disabled>Select User</option>
+              <option value="" disabled>
+                Select User
+              </option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.full_name} ({u.email})
@@ -136,29 +164,75 @@ export function AddOrderModal({
             </select>
           </div>
 
+          {/* Pack */}
           <div className="space-y-2">
             <Label htmlFor="pack">Pack</Label>
             <select
               id="pack"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+              className={SELECT_CLASS}
               value={selectedPack}
-              onChange={(e) => setSelectedPack(e.target.value)}
+              onChange={(e) => {
+                setSelectedPack(e.target.value);
+                setSelectedRegion("");
+              }}
               required
             >
-              <option value="" disabled>Select Pack</option>
+              <option value="" disabled>
+                Select Pack
+              </option>
               {packs.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.title} - €{p.price} ({p.total_hours} hrs)
+                  {p.title} — €{parseFloat(p.price).toFixed(2)} ({p.total_hours}{" "}
+                  hrs)
                 </option>
               ))}
             </select>
           </div>
 
+          {/* Region */}
+          <div className="space-y-2">
+            <Label htmlFor="region">
+              Region{" "}
+              <span className="text-muted-foreground text-xs font-normal">
+                (optional)
+              </span>
+            </Label>
+            <select
+              id="region"
+              className={SELECT_CLASS}
+              value={selectedRegion}
+              onChange={(e) => setSelectedRegion(e.target.value)}
+            >
+              <option value="">No specific region</option>
+              {regions
+                .filter((r) => r.is_active)
+                .map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+            </select>
+            {effectivePrice && (
+              <p className="text-xs text-muted-foreground">
+                Price for this order:{" "}
+                <span className="font-medium text-foreground">
+                  €{parseFloat(effectivePrice).toFixed(2)}
+                </span>
+                {regionPrice && (
+                  <span className="ml-1 text-green-600 dark:text-green-400">
+                    (regional rate)
+                  </span>
+                )}
+              </p>
+            )}
+          </div>
+
+          {/* Payment Method */}
           <div className="space-y-2">
             <Label htmlFor="payment_method">Payment Method</Label>
             <select
               id="payment_method"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+              className={SELECT_CLASS}
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
             >
@@ -169,11 +243,12 @@ export function AddOrderModal({
             </select>
           </div>
 
+          {/* Payment Status */}
           <div className="space-y-2">
             <Label htmlFor="payment_status">Payment Status</Label>
             <select
               id="payment_status"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+              className={SELECT_CLASS}
               value={paymentStatus}
               onChange={(e) => setPaymentStatus(e.target.value)}
             >
@@ -183,8 +258,12 @@ export function AddOrderModal({
             </select>
           </div>
 
-          <div className="flex justify-end pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="mr-2">
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>

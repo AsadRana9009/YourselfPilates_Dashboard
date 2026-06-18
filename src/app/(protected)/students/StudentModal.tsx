@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api";
-import { Professor, Student } from "@/types/api";
+import { getRegions } from "@/lib/apiActions";
+import { Professor, Region, Student } from "@/types/api";
 
 interface StudentModalProps {
   open: boolean;
@@ -26,6 +27,7 @@ const studentSchema = z.object({
   full_name: z.string().min(1, "Full name is required"),
   email: z.string().email({ message: "Invalid email address" }),
   contact_number: z.string().min(1, "Contact number is required"),
+  region: z.number().nullable().optional(),
 });
 
 type StudentFormValues = z.infer<typeof studentSchema>;
@@ -38,6 +40,7 @@ export function StudentModal({
 }: StudentModalProps) {
   const isEdit = !!initialData;
   const [professors, setProfessors] = useState<Professor[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
   const [loadingProfessors, setLoadingProfessors] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,12 +59,14 @@ export function StudentModal({
           full_name: initialData?.full_name || "",
           email: initialData?.email || "",
           contact_number: initialData?.contact_number || "",
+          region: initialData?.region ?? null,
         }
       : {
           professor: 0,
           full_name: "",
           email: "",
           contact_number: "",
+          region: null,
         },
   });
 
@@ -83,6 +88,10 @@ export function StudentModal({
       })
       .catch(() => setProfessors([]))
       .finally(() => setLoadingProfessors(false));
+
+    getRegions()
+      .then(setRegions)
+      .catch(() => setRegions([]));
   }, []);
 
   useEffect(() => {
@@ -94,12 +103,14 @@ export function StudentModal({
             full_name: initialData?.full_name || "",
             email: initialData?.email || "",
             contact_number: initialData?.contact_number || "",
+            region: initialData?.region ?? null,
           }
         : {
             professor: 0,
             full_name: "",
             email: "",
             contact_number: "",
+            region: null,
           }
     );
     setError(null);
@@ -113,6 +124,7 @@ export function StudentModal({
         full_name: data.full_name,
         email: data.email,
         contact_number: data.contact_number,
+        region: data.region ?? null,
       };
       if (isEdit) {
         await apiFetch(`/user/students/${initialData?.id}/`, {
@@ -191,6 +203,32 @@ export function StudentModal({
               {errors.contact_number.message}
             </span>
           )}
+        </div>
+        <div>
+          <Label>Region</Label>
+          <Controller
+            control={control}
+            name="region"
+            render={({ field }) => (
+              <select
+                value={field.value ?? ""}
+                onChange={(e) =>
+                  field.onChange(e.target.value ? Number(e.target.value) : null)
+                }
+                className="w-full border rounded px-3 py-2 dark:bg-black"
+                disabled={isSubmitting}
+              >
+                <option value="">No specific region</option>
+                {regions
+                  .filter((r) => r.is_active)
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+              </select>
+            )}
+          />
         </div>
         <Button
           type="submit"

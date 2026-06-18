@@ -1,19 +1,11 @@
 "use client";
 
-import { PencilIcon, PlusCircleIcon, ShieldCheckIcon, UserCheckIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { PencilIcon, ShieldCheckIcon, UserCheckIcon } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 import swal from "sweetalert";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Pagination,
   PaginationContent,
@@ -33,98 +25,9 @@ import { TableLoader } from "@/components/ui/TableLoader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiFetch } from "@/lib/api";
 import { deleteProfessor } from "@/lib/apiActions";
-import { PaginatedResponse, Professor, Student } from "@/types/api";
+import { PaginatedResponse, Professor } from "@/types/api";
 
 import { TeacherModal } from "./TeacherModal";
-
-// ── Top Up Hours modal ────────────────────────────────────────────────────────
-function TopUpModal({
-  professor,
-  open,
-  onOpenChange,
-  onSuccess,
-}: {
-  professor: Professor | null;
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  onSuccess: () => void;
-}) {
-  const [hours, setHours] = useState("");
-  const [mode, setMode] = useState<"add" | "set">("add");
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (open) { setHours(""); setMode("add"); }
-  }, [open]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const n = parseInt(hours);
-    if (isNaN(n) || n < 0) {
-      swal("Error", "Enter a valid non-negative number of hours.", "error");
-      return;
-    }
-    setLoading(true);
-    try {
-      await apiFetch(`/user/users/${professor!.id}/top_up_hours/`, {
-        method: "POST",
-        body: JSON.stringify({ hours: n, mode }),
-      });
-      swal("Done!", `Hours ${mode === "set" ? "set to" : "added:"} ${n} for ${professor!.full_name}.`, "success");
-      onSuccess();
-      onOpenChange(false);
-    } catch (err) {
-      swal("Error", (err as Error)?.message || "Failed to update hours.", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Top Up Hours — {professor?.full_name}</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground mb-2">
-          Current remaining: <strong>{professor?.remaining_hours ?? 0} hrs</strong>
-        </p>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1">
-            <Label>Mode</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm dark:bg-black"
-              value={mode}
-              onChange={(e) => setMode(e.target.value as "add" | "set")}
-            >
-              <option value="add">Add hours (on top of existing)</option>
-              <option value="set">Set hours (overwrite to exact value)</option>
-            </select>
-          </div>
-          <div className="space-y-1">
-            <Label>Hours</Label>
-            <Input
-              type="number"
-              min={0}
-              value={hours}
-              onChange={(e) => setHours(e.target.value)}
-              placeholder="e.g. 10"
-              required
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : "Save"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 interface ProfessorTableProps {
   professors: Professor[];
@@ -133,13 +36,13 @@ interface ProfessorTableProps {
   deleteLoadingId: number | null;
   prevUrl: string | null;
   nextUrl: string | null;
-  onEdit: (p: Professor) => void;
-  onApproval: (id: number, approve: boolean) => void;
-  onDelete: (p: Professor) => void;
-  onTopUp: (p: Professor) => void;
+  onEdit: (_p: Professor) => void;
+  onApproval: (_id: number, _approve: boolean) => void;
+  onDelete: (_p: Professor) => void;
   onPrev: () => void;
   onNext: () => void;
   emptyMessage: string;
+  isPro?: boolean;
 }
 
 function ProfessorTable({
@@ -152,10 +55,10 @@ function ProfessorTable({
   onEdit,
   onApproval,
   onDelete,
-  onTopUp,
   onPrev,
   onNext,
   emptyMessage,
+  isPro = false,
 }: ProfessorTableProps) {
   if (loading) return <TableLoader />;
 
@@ -166,13 +69,11 @@ function ProfessorTable({
           <TableRow>
             <TableHead>Email</TableHead>
             <TableHead>Full Name</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>City</TableHead>
-            <TableHead>Students</TableHead>
+            {!isPro && <TableHead>Region</TableHead>}
             <TableHead>Contact</TableHead>
-            <TableHead>Purchased Hrs</TableHead>
-            <TableHead>Remaining Hrs</TableHead>
-            <TableHead>Used Hrs</TableHead>
+            {isPro && <TableHead>Purchased Hrs</TableHead>}
+            {isPro && <TableHead>Remaining Hrs</TableHead>}
+            {isPro && <TableHead>Used Hrs</TableHead>}
             <TableHead>Status</TableHead>
             <TableHead>Approval</TableHead>
             <TableHead>Actions</TableHead>
@@ -181,7 +82,10 @@ function ProfessorTable({
         <TableBody>
           {professors.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={12} className="text-center py-10 text-muted-foreground">
+              <TableCell
+                colSpan={isPro ? 10 : 8}
+                className="text-center py-10 text-muted-foreground"
+              >
                 {emptyMessage}
               </TableCell>
             </TableRow>
@@ -190,23 +94,13 @@ function ProfessorTable({
               <TableRow key={prof.id}>
                 <TableCell>{prof.email}</TableCell>
                 <TableCell>{prof.full_name}</TableCell>
-                <TableCell>{prof.role}</TableCell>
-                <TableCell>{prof.city || "-"}</TableCell>
-                <TableCell>
-                  {(prof.students as Student[])?.length ? (
-                    <div className="max-h-24 overflow-y-auto space-y-1 pr-2">
-                      {(prof.students as Student[]).map((s) => (
-                        <div key={s.id} className="bg-muted rounded px-2 py-1 text-xs">
-                          {s.full_name}
-                        </div>
-                      ))}
-                    </div>
-                  ) : "-"}
-                </TableCell>
+                {!isPro && <TableCell>{prof.region_name || "-"}</TableCell>}
                 <TableCell>{prof.contact_number || "-"}</TableCell>
-                <TableCell>{prof.total_purchased_hours ?? "-"}</TableCell>
-                <TableCell>{prof.remaining_hours ?? "-"}</TableCell>
-                <TableCell>{prof.used_hours ?? "-"}</TableCell>
+                {isPro && (
+                  <TableCell>{prof.total_purchased_hours ?? "-"}</TableCell>
+                )}
+                {isPro && <TableCell>{prof.remaining_hours ?? "-"}</TableCell>}
+                {isPro && <TableCell>{prof.used_hours ?? "-"}</TableCell>}
                 <TableCell>
                   {prof.is_active ? (
                     <Badge className="bg-green-500 text-white">Active</Badge>
@@ -223,21 +117,19 @@ function ProfessorTable({
                   >
                     {actionLoadingId === prof.id
                       ? "Processing..."
-                      : prof.is_active ? "Cancel" : "Approve"}
+                      : prof.is_active
+                        ? "Cancel"
+                        : "Approve"}
                   </Button>
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-2 flex-wrap">
-                    <Button size="sm" variant="outline" onClick={() => onEdit(prof)}>
-                      <PencilIcon className="w-4 h-4" /> Edit
-                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      className="border-green-500 text-green-600 hover:bg-green-500 hover:text-white"
-                      onClick={() => onTopUp(prof)}
+                      onClick={() => onEdit(prof)}
                     >
-                      <PlusCircleIcon className="w-4 h-4 mr-1" /> Top Up
+                      <PencilIcon className="w-4 h-4" /> Edit
                     </Button>
                     <Button
                       size="sm"
@@ -261,14 +153,20 @@ function ProfessorTable({
           <PaginationItem>
             <PaginationPrevious
               href="#"
-              onClick={(e) => { e.preventDefault(); if (prevUrl) onPrev(); }}
+              onClick={(e) => {
+                e.preventDefault();
+                if (prevUrl) onPrev();
+              }}
               className={!prevUrl ? "pointer-events-none opacity-50" : ""}
             />
           </PaginationItem>
           <PaginationItem>
             <PaginationNext
               href="#"
-              onClick={(e) => { e.preventDefault(); if (nextUrl) onNext(); }}
+              onClick={(e) => {
+                e.preventDefault();
+                if (nextUrl) onNext();
+              }}
               className={!nextUrl ? "pointer-events-none opacity-50" : ""}
             />
           </PaginationItem>
@@ -286,21 +184,25 @@ function useProfessors(isPublic: boolean) {
 
   const baseUrl = `/user/users/?role=professor&is_public=${isPublic}`;
 
-  async function fetch(url: string = baseUrl) {
-    setLoading(true);
-    try {
-      const res: PaginatedResponse<Professor> = await apiFetch(url);
-      setProfessors(res.results);
-      setNextUrl(res.next);
-      setPrevUrl(res.previous);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const fetch = useCallback(
+    async (url: string = baseUrl) => {
+      setLoading(true);
+      try {
+        const res: PaginatedResponse<Professor> = await apiFetch(url);
+        setProfessors(res.results);
+        setNextUrl(res.next);
+        setPrevUrl(res.previous);
+      } catch {
+      } finally {
+        setLoading(false);
+      }
+    },
+    [baseUrl]
+  );
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => {
+    fetch();
+  }, [fetch]);
 
   return { professors, nextUrl, prevUrl, loading, fetch, baseUrl };
 }
@@ -309,14 +211,12 @@ export default function TeachersPage() {
   const pro = useProfessors(false);
   const pub = useProfessors(true);
 
-  const [modal, setModal] = useState<{ open: boolean; data: Professor | null }>({
-    open: false,
-    data: null,
-  });
-  const [topUpModal, setTopUpModal] = useState<{ open: boolean; data: Professor | null }>({
-    open: false,
-    data: null,
-  });
+  const [modal, setModal] = useState<{ open: boolean; data: Professor | null }>(
+    {
+      open: false,
+      data: null,
+    }
+  );
   const [activeTab, setActiveTab] = useState<"pro" | "public">("pro");
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [deleteLoadingId, setDeleteLoadingId] = useState<number | null>(null);
@@ -325,19 +225,24 @@ export default function TeachersPage() {
 
   const openAdd = () => setModal({ open: true, data: null });
   const openEdit = (p: Professor) => setModal({ open: true, data: p });
-  const openTopUp = (p: Professor) => setTopUpModal({ open: true, data: p });
 
   const handleApproval = async (userId: number, approve: boolean) => {
     setActionLoadingId(userId);
     try {
       await apiFetch(
-        approve ? `/user/users/approve/?user_id=${userId}` : `/user/users/cancel/?user_id=${userId}`,
+        approve
+          ? `/user/users/approve/?user_id=${userId}`
+          : `/user/users/cancel/?user_id=${userId}`,
         { method: "GET" }
       );
       swal({ title: approve ? "Approved!" : "Cancelled!", icon: "success" });
       currentList.fetch();
     } catch (err: unknown) {
-      swal({ title: "Error!", text: (err as Error)?.message || "Action failed", icon: "error" });
+      swal({
+        title: "Error!",
+        text: (err as Error)?.message || "Action failed",
+        icon: "error",
+      });
     } finally {
       setActionLoadingId(null);
     }
@@ -359,7 +264,11 @@ export default function TeachersPage() {
       swal({ title: "Deleted!", icon: "success" });
       currentList.fetch();
     } catch (err) {
-      swal({ title: "Error!", text: (err as Error)?.message || "Delete failed", icon: "error" });
+      swal({
+        title: "Error!",
+        text: (err as Error)?.message || "Delete failed",
+        icon: "error",
+      });
     } finally {
       setDeleteLoadingId(null);
     }
@@ -370,32 +279,39 @@ export default function TeachersPage() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6 mx-2">
         <h2 className="text-2xl font-bold">Professors</h2>
-        {activeTab === "pro" && (
+        {activeTab === "public" && (
           <Button onClick={openAdd}>Add Professor</Button>
         )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "pro" | "public")}>
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as "pro" | "public")}
+      >
         <TabsList className="mb-4">
           <TabsTrigger value="pro" className="flex items-center gap-2">
             <ShieldCheckIcon className="w-4 h-4" />
             Pro Professors
             {!pro.loading && (
-              <span className="ml-1 text-xs text-muted-foreground">({pro.professors.length})</span>
+              <span className="ml-1 text-xs text-muted-foreground">
+                ({pro.professors.length})
+              </span>
             )}
           </TabsTrigger>
           <TabsTrigger value="public" className="flex items-center gap-2">
             <UserCheckIcon className="w-4 h-4" />
             Public Professors
             {!pub.loading && (
-              <span className="ml-1 text-xs text-muted-foreground">({pub.professors.length})</span>
+              <span className="ml-1 text-xs text-muted-foreground">
+                ({pub.professors.length})
+              </span>
             )}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="pro">
           <p className="text-sm text-muted-foreground mb-3">
-            Professors created by the admin. Only visible here — not on the public site.
+            Professors who signed up themselves through the public site.
           </p>
           <ProfessorTable
             professors={pro.professors}
@@ -407,16 +323,17 @@ export default function TeachersPage() {
             onEdit={openEdit}
             onApproval={handleApproval}
             onDelete={handleDelete}
-            onTopUp={openTopUp}
             onPrev={() => pro.fetch(pro.prevUrl!)}
             onNext={() => pro.fetch(pro.nextUrl!)}
-            emptyMessage="No pro professors yet. Use 'Add Professor' to create one."
+            emptyMessage="No pro professors yet. They will appear here when professors sign up themselves."
+            isPro
           />
         </TabsContent>
 
         <TabsContent value="public">
           <p className="text-sm text-muted-foreground mb-3">
-            Professors who signed up themselves through the public site.
+            Professors created by the admin. Use &apos;Add Professor&apos; to
+            create one.
           </p>
           <ProfessorTable
             professors={pub.professors}
@@ -428,32 +345,23 @@ export default function TeachersPage() {
             onEdit={openEdit}
             onApproval={handleApproval}
             onDelete={handleDelete}
-            onTopUp={openTopUp}
             onPrev={() => pub.fetch(pub.prevUrl!)}
             onNext={() => pub.fetch(pub.nextUrl!)}
-            emptyMessage="No public professors yet. They will appear here when professors sign up themselves."
+            emptyMessage="No public professors yet. Use 'Add Professor' to create one."
           />
         </TabsContent>
       </Tabs>
 
       <TeacherModal
         open={modal.open}
-        onOpenChange={(open) => setModal({ open, data: open ? modal.data : null })}
+        onOpenChange={(open) =>
+          setModal({ open, data: open ? modal.data : null })
+        }
         onSuccess={() => {
           pro.fetch();
           pub.fetch();
         }}
         initialData={modal.data}
-      />
-
-      <TopUpModal
-        open={topUpModal.open}
-        onOpenChange={(open) => setTopUpModal({ open, data: open ? topUpModal.data : null })}
-        professor={topUpModal.data}
-        onSuccess={() => {
-          pro.fetch();
-          pub.fetch();
-        }}
       />
     </div>
   );

@@ -13,6 +13,9 @@ export interface Student {
   bio: string | null;
   contact_number: string | null;
   photo: string | null;
+  region?: number | null;
+  region_name?: string | null;
+  remaining_hours?: number;
 }
 
 export interface Professor {
@@ -37,6 +40,8 @@ export interface Professor {
   total_purchased_hours?: number | string;
   remaining_hours?: number;
   used_hours?: number;
+  region?: number | null;
+  region_name?: string | null;
 }
 
 export interface Slot {
@@ -60,6 +65,8 @@ export interface Booking {
   updated_at?: string;
   approve: boolean;
   student_details?: { id: number; full_name: string; email: string }[];
+  region?: number | null;
+  region_name?: string | null;
 }
 
 export interface Video {
@@ -85,6 +92,22 @@ export interface User {
   role?: string;
 }
 
+export interface Region {
+  id: number;
+  name: string;
+  slug: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface PackRegionPrice {
+  id: number;
+  region: number;
+  region_name: string;
+  region_slug: string;
+  price: string;
+}
+
 export interface Pack {
   id: number;
   title: string;
@@ -94,6 +117,9 @@ export interface Pack {
   target_role?: "professor" | "student";
   active?: boolean;
   is_public?: boolean;
+  region?: number | null;
+  region_name?: string | null;
+  region_prices?: PackRegionPrice[];
 }
 
 export interface Order {
@@ -103,9 +129,11 @@ export interface Order {
   pack_details: {
     title: string;
     total_hours: number;
+    price: string;
   };
   amount: string;
   payment_method: string;
   payment_status: string;
+  region_name: string | null;
   created_at: string;
 }

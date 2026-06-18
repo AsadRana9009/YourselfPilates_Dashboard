@@ -1,6 +1,11 @@
 "use client";
 
-import { CheckCircle2Icon, PlusIcon, Trash2Icon } from "lucide-react";
+import {
+  CheckCircle2Icon,
+  MapPinIcon,
+  PlusIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { PackCard } from "@/components/PackCard";
@@ -14,12 +19,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   deletePack,
   getPacks,
+  getRegions,
   Pack,
   subscribeToPack,
   updatePack,
 } from "@/lib/apiActions";
+import type { Region } from "@/types/api";
 
 import { PackModal } from "./PackModal";
 
@@ -27,10 +41,10 @@ interface PackSectionProps {
   title: string;
   description: string;
   packs: Pack[];
-  onSubscribe: (pack: Pack) => void;
-  onEdit: (pack: Pack) => void;
-  onDelete: (pack: Pack) => void;
-  onToggleActive: (pack: Pack) => void;
+  onSubscribe: (_pack: Pack) => void;
+  onEdit: (_pack: Pack) => void;
+  onDelete: (_pack: Pack) => void;
+  onToggleActive: (_pack: Pack) => void;
 }
 
 function PackSection({
@@ -56,7 +70,9 @@ function PackSection({
 
       {packs.length === 0 ? (
         <div className="flex items-center justify-center h-32 rounded-lg border border-dashed border-border bg-muted/30">
-          <p className="text-muted-foreground text-sm">No {title.toLowerCase()} yet.</p>
+          <p className="text-muted-foreground text-sm">
+            No {title.toLowerCase()} yet.
+          </p>
         </div>
       ) : (
         <div className="overflow-x-auto pack-scroll pb-4">
@@ -93,8 +109,21 @@ export default function PacksPage() {
     null
   );
 
+  // Region filter
+  const [filterRegion, setFilterRegion] = useState<string>("all");
+
+  // Region-selection for subscribe flow
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [regionDialogOpen, setRegionDialogOpen] = useState(false);
+  const [packToSubscribe, setPackToSubscribe] = useState<Pack | null>(null);
+  const [selectedRegionId, setSelectedRegionId] = useState<string>("");
+  const [subscribing, setSubscribing] = useState(false);
+
   useEffect(() => {
     fetchPacks();
+    getRegions()
+      .then(setRegions)
+      .catch(() => setRegions([]));
   }, []);
 
   const fetchPacks = async () => {
@@ -150,16 +179,32 @@ export default function PacksPage() {
     }
   };
 
-  const handleSubscribe = async (pack: Pack) => {
+  const handleSubscribe = (pack: Pack) => {
+    setError(null);
+    setPackToSubscribe(pack);
+    setSelectedRegionId("");
+    setRegionDialogOpen(true);
+  };
+
+  const confirmSubscribe = async () => {
+    if (!packToSubscribe) return;
+    setSubscribing(true);
+    setError(null);
     try {
-      setError(null);
-      await subscribeToPack(Number(pack.id));
-      setSubscribedPackName(pack.title);
+      await subscribeToPack(Number(packToSubscribe.id), {
+        region_id: selectedRegionId ? Number(selectedRegionId) : undefined,
+      });
+      setRegionDialogOpen(false);
+      setSubscribedPackName(packToSubscribe.title);
       setSuccessDialogOpen(true);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to subscribe to pack"
       );
+      setRegionDialogOpen(false);
+    } finally {
+      setSubscribing(false);
+      setPackToSubscribe(null);
     }
   };
 
@@ -169,8 +214,13 @@ export default function PacksPage() {
     setEditingPack(null);
   };
 
-  const publicPacks = packs.filter((p) => p.is_public === true);
-  const proPacks = packs.filter((p) => p.is_public !== true);
+  const filteredPacks =
+    filterRegion === "all"
+      ? packs
+      : packs.filter((p) => p.region === Number(filterRegion));
+
+  const publicPacks = filteredPacks.filter((p) => p.is_public === true);
+  const proPacks = filteredPacks.filter((p) => p.is_public !== true);
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -178,12 +228,28 @@ export default function PacksPage() {
         <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
           Packs
         </h2>
-        <Button
-          onClick={handleCreate}
-          className="cursor-pointer w-full sm:w-auto"
-        >
-          <PlusIcon className="mr-2 w-4 h-4" /> Create New Pack
-        </Button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+          <Select value={filterRegion} onValueChange={setFilterRegion}>
+            <SelectTrigger className="w-full sm:w-45">
+              <MapPinIcon className="w-4 h-4 mr-1 text-muted-foreground" />
+              <SelectValue placeholder="All Regions" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Regions</SelectItem>
+              {regions.map((r) => (
+                <SelectItem key={r.id} value={String(r.id)}>
+                  {r.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            onClick={handleCreate}
+            className="cursor-pointer w-full sm:w-auto"
+          >
+            <PlusIcon className="mr-2 w-4 h-4" /> Create New Pack
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -231,6 +297,87 @@ export default function PacksPage() {
         onSuccess={handleModalSuccess}
         initialData={editingPack}
       />
+
+      {/* Region selection dialog — shown before subscribing to a pack */}
+      <Dialog
+        open={regionDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRegionDialogOpen(false);
+            setPackToSubscribe(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <MapPinIcon className="w-5 h-5 text-muted-foreground" />
+              <DialogTitle>Choose Your Location</DialogTitle>
+            </div>
+            <DialogDescription>
+              Select the gym location for{" "}
+              <span className="font-medium text-foreground">
+                &quot;{packToSubscribe?.title}&quot;
+              </span>
+              .
+              {regions.length > 0
+                ? " Pricing may differ per location."
+                : " No locations configured yet — the base price will apply."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {regions.length > 0 && (
+            <div className="py-2">
+              <Select
+                value={selectedRegionId}
+                onValueChange={setSelectedRegionId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {regions.map((r) => {
+                    const regionPrice = packToSubscribe?.region_prices?.find(
+                      (rp) => rp.region === r.id
+                    );
+                    return (
+                      <SelectItem key={r.id} value={String(r.id)}>
+                        {r.name}
+                        {regionPrice
+                          ? ` — €${parseFloat(regionPrice.price).toFixed(2)}`
+                          : ` — €${parseFloat(packToSubscribe?.price ?? "0").toFixed(2)} (base)`}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRegionDialogOpen(false);
+                setPackToSubscribe(null);
+              }}
+              disabled={subscribing}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmSubscribe}
+              disabled={
+                subscribing || (regions.length > 0 && !selectedRegionId)
+              }
+              className="w-full sm:w-auto"
+            >
+              {subscribing ? "Subscribing…" : "Confirm"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">

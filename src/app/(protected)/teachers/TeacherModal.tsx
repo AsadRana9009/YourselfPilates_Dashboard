@@ -1,9 +1,15 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircleIcon, Loader2Icon } from "lucide-react";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import {
+  AlertCircleIcon,
+  Eye,
+  EyeOff,
+  Loader2Icon,
+  RefreshCw,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
@@ -12,7 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api";
-import { Professor } from "@/types/api";
+import { getRegions } from "@/lib/apiActions";
+import { Professor, Region } from "@/types/api";
 
 interface TeacherModalProps {
   open: boolean;
@@ -35,11 +42,10 @@ const KNOWN_DOMAINS = [
 ];
 
 function levenshtein(a: string, b: string): number {
-  const m = a.length, n = b.length;
+  const m = a.length,
+    n = b.length;
   const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
-    Array.from({ length: n + 1 }, (_, j) =>
-      i === 0 ? j : j === 0 ? i : 0
-    )
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
   );
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
@@ -97,11 +103,15 @@ const commonSchema = z.object({
   state: z.string().optional(),
   country: z.string().optional(),
   zipcode: z.string().optional(),
+  region: z.number().nullable().optional(),
 });
 
 const editSchema = commonSchema.extend({
   password: z
-    .union([z.string().min(6, "Password must be at least 6 characters"), z.literal("")])
+    .union([
+      z.string().min(6, "Password must be at least 6 characters"),
+      z.literal(""),
+    ])
     .optional(),
 });
 
@@ -117,6 +127,7 @@ const emptyValues: FormValues = {
   state: "",
   country: "",
   zipcode: "",
+  region: null,
 };
 
 function toFormValues(p: Professor): FormValues {
@@ -130,6 +141,7 @@ function toFormValues(p: Professor): FormValues {
     state: p.state ?? "",
     country: p.country ?? "",
     zipcode: p.zipcode ?? "",
+    region: p.region ?? null,
   };
 }
 
@@ -138,14 +150,36 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-red-500 text-xs mt-1">{message}</p>;
 }
 
-export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: TeacherModalProps) {
+function generateStrongPassword(): string {
+  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const lower = "abcdefghijklmnopqrstuvwxyz";
+  const digits = "0123456789";
+  const special = "!@#$%^&*";
+  const all = upper + lower + digits + special;
+  const pick = (s: string) => s[Math.floor(Math.random() * s.length)];
+  const chars = [pick(upper), pick(lower), pick(digits), pick(special)];
+  for (let i = 4; i < 14; i++) chars.push(pick(all));
+  return chars.sort(() => Math.random() - 0.5).join("");
+}
+
+export function TeacherModal({
+  open,
+  onOpenChange,
+  onSuccess,
+  initialData,
+}: TeacherModalProps) {
   const isEdit = !!initialData;
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [showPassword, setShowPassword] = useState(false);
+  const [pwCopied, setPwCopied] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
     setError,
+    setValue,
+    control,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(editSchema),
@@ -154,7 +188,17 @@ export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: Tea
   });
 
   useEffect(() => {
-    reset((isEdit && initialData ? toFormValues(initialData) : emptyValues) as FormValues);
+    getRegions()
+      .then(setRegions)
+      .catch(() => setRegions([]));
+  }, []);
+
+  useEffect(() => {
+    reset(
+      (isEdit && initialData
+        ? toFormValues(initialData)
+        : emptyValues) as FormValues
+    );
   }, [open, initialData, isEdit, reset]);
 
   async function onSubmit(data: FormValues) {
@@ -162,12 +206,14 @@ export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: Tea
       email: data.email,
       full_name: data.full_name.trim(),
       role: "professor",
+      is_public: true,
       contact_number: data.contact_number || "",
       street: data.street || "",
       city: data.city || "",
       state: data.state || "",
       country: data.country || "",
       zipcode: data.zipcode || "",
+      region: data.region ?? null,
     };
     if (data.password) payload.password = data.password;
 
@@ -191,7 +237,17 @@ export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: Tea
       const apiErr = err as Error & { data?: Record<string, unknown> };
       const rawData = apiErr.data;
 
-      const FIELD_MAP = ["email", "full_name", "password", "contact_number", "city", "country", "state", "zipcode", "street"] as const;
+      const FIELD_MAP = [
+        "email",
+        "full_name",
+        "password",
+        "contact_number",
+        "city",
+        "country",
+        "state",
+        "zipcode",
+        "street",
+      ] as const;
 
       let mappedAny = false;
       if (rawData && typeof rawData === "object") {
@@ -220,11 +276,12 @@ export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: Tea
       className="sm:max-w-[560px]"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-
         {errors.root && (
           <div className="flex items-start gap-3 rounded-md border border-red-300 bg-red-50 dark:bg-red-950/20 dark:border-red-800 p-3">
             <AlertCircleIcon className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-            <p className="text-sm text-red-600 dark:text-red-400">{errors.root.message}</p>
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {errors.root.message}
+            </p>
           </div>
         )}
         <div>
@@ -236,7 +293,11 @@ export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: Tea
             placeholder="e.g. Maria Silva"
             disabled={isSubmitting}
             {...register("full_name")}
-            className={errors.full_name ? "border-red-500 focus-visible:ring-red-400" : ""}
+            className={
+              errors.full_name
+                ? "border-red-500 focus-visible:ring-red-400"
+                : ""
+            }
           />
           <FieldError message={errors.full_name?.message} />
         </div>
@@ -250,7 +311,9 @@ export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: Tea
             placeholder="e.g. professor@example.com"
             disabled={isEdit || isSubmitting}
             {...register("email")}
-            className={errors.email ? "border-red-500 focus-visible:ring-red-400" : ""}
+            className={
+              errors.email ? "border-red-500 focus-visible:ring-red-400" : ""
+            }
           />
           <FieldError message={errors.email?.message} />
         </div>
@@ -259,14 +322,49 @@ export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: Tea
             {isEdit ? "New Password" : "Password"}{" "}
             {!isEdit && <span className="text-red-500">*</span>}
           </Label>
-          <Input
-            id="password"
-            type="password"
-            placeholder={isEdit ? "Leave blank to keep current password" : "Min. 6 characters"}
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder={
+                isEdit
+                  ? "Leave blank to keep current password"
+                  : "Min. 6 characters"
+              }
+              disabled={isSubmitting}
+              {...register("password")}
+              className={
+                (errors.password
+                  ? "border-red-500 focus-visible:ring-red-400"
+                  : "") + " pr-10"
+              }
+            />
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          <button
+            type="button"
             disabled={isSubmitting}
-            {...register("password")}
-            className={errors.password ? "border-red-500 focus-visible:ring-red-400" : ""}
-          />
+            onClick={() => {
+              const pw = generateStrongPassword();
+              setValue("password", pw, { shouldValidate: true });
+              setShowPassword(true);
+              navigator.clipboard?.writeText(pw).then(() => {
+                setPwCopied(true);
+                setTimeout(() => setPwCopied(false), 2000);
+              });
+            }}
+            className="mt-1 flex items-center gap-1 text-xs font-medium text-blue-500 hover:text-blue-700 disabled:opacity-50"
+          >
+            <RefreshCw size={11} />
+            {pwCopied ? "Copied to clipboard!" : "Suggest a strong password"}
+          </button>
           <FieldError message={errors.password?.message} />
         </div>
         <div>
@@ -330,6 +428,33 @@ export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: Tea
             {...register("street")}
           />
         </div>
+        <div>
+          <Label htmlFor="region">Region</Label>
+          <Controller
+            control={control}
+            name="region"
+            render={({ field }) => (
+              <select
+                id="region"
+                value={field.value ?? ""}
+                onChange={(e) =>
+                  field.onChange(e.target.value ? Number(e.target.value) : null)
+                }
+                className="w-full border rounded px-3 py-2 dark:bg-black"
+                disabled={isSubmitting}
+              >
+                <option value="">No specific region</option>
+                {regions
+                  .filter((r) => r.is_active)
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+              </select>
+            )}
+          />
+        </div>
         <div className="flex gap-3 pt-2">
           <Button
             type="button"
@@ -346,8 +471,10 @@ export function TeacherModal({ open, onOpenChange, onSuccess, initialData }: Tea
                 <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
                 {isEdit ? "Saving..." : "Creating..."}
               </>
+            ) : isEdit ? (
+              "Save Changes"
             ) : (
-              isEdit ? "Save Changes" : "Create Professor"
+              "Create Professor"
             )}
           </Button>
         </div>

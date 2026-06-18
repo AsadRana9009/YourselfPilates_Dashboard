@@ -1,4 +1,5 @@
 import { useAuthStore } from "@/stores/authStore";
+import type { Region } from "@/types/api";
 import { PaginatedResponse, PaginatedVideoResponse, Video } from "@/types/api";
 import { Order } from "@/types/api";
 
@@ -172,6 +173,14 @@ export async function uploadVideo({
   return res.json();
 }
 
+export interface PackRegionPrice {
+  id: number;
+  region: number;
+  region_name: string;
+  region_slug: string;
+  price: string;
+}
+
 export interface Pack {
   id: number;
   title: string;
@@ -179,8 +188,12 @@ export interface Pack {
   image: string | null;
   active: boolean;
   is_public: boolean;
+  target_role: "professor" | "student";
   price: string;
   total_hours?: number;
+  region?: number | null;
+  region_name?: string | null;
+  region_prices?: PackRegionPrice[];
   created_at?: string;
   updated_at?: string;
 }
@@ -200,6 +213,7 @@ export interface CreatePackPayload {
   is_public: boolean;
   price: string;
   total_hours?: number;
+  region?: number | null;
 }
 
 export async function getPacks(page = 1): Promise<PaginatedPackResponse> {
@@ -225,6 +239,13 @@ export async function createPack(
 
   if (payload["total_hours"] !== undefined) {
     formData.append("total_hours", payload["total_hours"].toString());
+  }
+
+  if (payload.region !== undefined) {
+    formData.append(
+      "region",
+      payload.region != null ? payload.region.toString() : ""
+    );
   }
 
   if (payload.image instanceof File) {
@@ -281,6 +302,13 @@ export async function updatePack(
     formData.append("total_hours", payload["total_hours"].toString());
   }
 
+  if (payload.region !== undefined) {
+    formData.append(
+      "region",
+      payload.region != null ? payload.region.toString() : ""
+    );
+  }
+
   if (payload.image instanceof File) {
     formData.append("image", payload.image);
   }
@@ -326,10 +354,78 @@ export async function deletePack(id: number) {
   return response;
 }
 
-export async function subscribeToPack(packId: number) {
+export async function subscribeToPack(
+  packId: number,
+  options?: {
+    region_id?: number;
+    payment_method?: string;
+    mbway_phone?: string;
+  }
+) {
   return apiFetch(`/subscriptions/packs/${packId}/subscribe/`, {
     method: "POST",
+    body: JSON.stringify(options ?? {}),
   });
+}
+
+// ---------- Region API ----------
+
+export async function getRegions(): Promise<Region[]> {
+  const res: PaginatedResponse<Region> = await apiFetch(
+    "/subscriptions/regions/"
+  );
+  return res.results;
+}
+
+export async function createRegion(payload: {
+  name: string;
+  slug: string;
+  is_active: boolean;
+}): Promise<Region> {
+  return apiFetch("/subscriptions/regions/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateRegion(
+  id: number,
+  payload: Partial<{ name: string; slug: string; is_active: boolean }>
+): Promise<Region> {
+  return apiFetch(`/subscriptions/regions/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteRegion(id: number): Promise<void> {
+  const { token } = useAuthStore.getState();
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/subscriptions/regions/${id}/`,
+    {
+      method: "DELETE",
+      headers: { Authorization: `Token ${token}` },
+      credentials: "include",
+    }
+  );
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.detail || "Failed to delete region");
+  }
+}
+
+export async function setPackRegionPrices(
+  packId: number,
+  prices: { region_id: number; price: string }[]
+): Promise<Pack> {
+  return apiFetch(`/subscriptions/packs/${packId}/set_region_prices/`, {
+    method: "POST",
+    body: JSON.stringify({ prices }),
+  });
+}
+
+export async function deleteOrder(orderId: number): Promise<void> {
+  return apiFetch(`/subscriptions/orders/${orderId}/`, { method: "DELETE" });
 }
 
 export async function getOrders(params?: {

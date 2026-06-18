@@ -2,6 +2,7 @@ import "./globals.css";
 
 import { Metadata } from "next";
 import React from "react";
+import { Toaster } from "sonner";
 
 import AuthProvider from "@/components/AuthProvider";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -27,6 +28,7 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             {children}
+            <Toaster richColors position="top-right" />
           </ThemeProvider>
         </AuthProvider>
       </body>

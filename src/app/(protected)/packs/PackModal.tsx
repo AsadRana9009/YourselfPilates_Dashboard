@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { createPack, Pack, updatePack } from "@/lib/apiActions";
+import { createPack, getRegions, Pack, updatePack } from "@/lib/apiActions";
+import type { Region } from "@/types/api";
 
 interface PackModalProps {
   open: boolean;
@@ -40,6 +40,7 @@ const packSchema = z.object({
     .positive("Price must be greater than 0"),
   active: z.boolean(),
   is_public: z.boolean(),
+  target_role: z.enum(["professor", "student"]),
   creditHours: z
     .number({ required_error: "Credit Hours is required" })
     .int("Credit Hours must be a whole number")
@@ -58,6 +59,8 @@ export function PackModal({
   const [error, setError] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [selectedRegion, setSelectedRegion] = useState<string>("");
 
   const {
     register,
@@ -75,6 +78,9 @@ export function PackModal({
           price: initialData?.price ? parseFloat(initialData.price) : 0,
           active: initialData?.active ?? true,
           is_public: initialData?.is_public ?? false,
+          target_role:
+            (initialData?.target_role as "professor" | "student") ??
+            "professor",
           creditHours: initialData?.total_hours ?? 0,
         }
       : {
@@ -83,12 +89,19 @@ export function PackModal({
           price: 0,
           active: true,
           is_public: false,
+          target_role: "professor",
           creditHours: 0,
         },
   });
 
   const activeValue = watch("active");
   const isPublicValue = watch("is_public");
+
+  useEffect(() => {
+    getRegions()
+      .then(setRegions)
+      .catch(() => setRegions([]));
+  }, []);
 
   useEffect(() => {
     if (isEdit && initialData) {
@@ -98,9 +111,12 @@ export function PackModal({
         price: initialData.price ? parseFloat(initialData.price) : 0,
         active: initialData.active ?? true,
         is_public: initialData.is_public ?? false,
+        target_role:
+          (initialData.target_role as "professor" | "student") ?? "professor",
         creditHours: initialData.total_hours ?? 0,
       });
       setImagePreview(initialData.image || null);
+      setSelectedRegion(initialData.region ? String(initialData.region) : "");
     } else {
       reset({
         title: "",
@@ -108,9 +124,11 @@ export function PackModal({
         price: 0,
         active: true,
         is_public: false,
+        target_role: "professor",
         creditHours: 0,
       });
       setImagePreview(null);
+      setSelectedRegion("");
     }
     setImageFile(null);
     setError(null);
@@ -175,11 +193,13 @@ export function PackModal({
         description: data.description.trim(),
         active: data.active,
         is_public: data.is_public,
+        target_role: data.target_role,
         price: data.price.toString(),
         total_hours: data.creditHours,
+        region: selectedRegion ? Number(selectedRegion) : null,
         ...(imageFile && { image: imageFile }),
       };
-      console.log("Payload:", payload);
+
       if (isEdit && initialData?.id) {
         await updatePack(Number(initialData.id), payload);
       } else {
@@ -312,6 +332,24 @@ export function PackModal({
           )}
         </div>
 
+        <div>
+          <Label htmlFor="region">Region</Label>
+          <select
+            id="region"
+            value={selectedRegion}
+            onChange={(e) => setSelectedRegion(e.target.value)}
+            disabled={isSubmitting}
+            className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="">No specific region</option>
+            {regions.map((r) => (
+              <option key={r.id} value={String(r.id)}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="flex items-center justify-between">
           <Label htmlFor="active" className="cursor-pointer">
             Active
@@ -339,6 +377,24 @@ export function PackModal({
             onCheckedChange={(checked) => setValue("is_public", checked)}
             disabled={isSubmitting}
           />
+        </div>
+
+        <div>
+          <Label htmlFor="target_role">
+            Target Role <span className="text-red-500">*</span>
+          </Label>
+          <select
+            id="target_role"
+            {...register("target_role")}
+            disabled={isSubmitting}
+            className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="professor">Professor (Pro Professor packs)</option>
+            <option value="student">Student (Public Student packs)</option>
+          </select>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Determines who can purchase this pack.
+          </p>
         </div>
 
         {error && (

@@ -30,7 +30,7 @@ const eslintConfig = [
       semi: ["error"],
       quotes: ["error", "double"],
       "no-console": ["warn"],
-      "no-unused-vars": ["error"],
+      "no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
       "no-undef": ["error"],
       "simple-import-sort/imports": "error",
       "simple-import-sort/exports": "error",

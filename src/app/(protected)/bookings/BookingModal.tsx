@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import React, { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import * as z from "zod";
 
 import { ControlledDrawerDialog } from "@/components/ModalDrawer/ModalDrawer";
@@ -12,18 +13,20 @@ import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { TableLoader } from "@/components/ui/TableLoader";
 import { apiFetch } from "@/lib/api";
+import { getRegions } from "@/lib/apiActions";
 import { getTodayDateString } from "@/lib/utils";
-import { Booking, Professor, Slot, Student } from "@/types/api";
+import { Booking, Professor, Region, Slot, Student } from "@/types/api";
 
 const bookingSchema = z.object({
   title: z.string().min(1, "Title is required"),
   booking_type: z.enum(["pro", "public"]),
   professor: z.number({ required_error: "Professor is required" }),
-  students: z.array(z.number()).min(1, "Select at least one student"),
+  students: z.array(z.number()),
   booking_date: z.string().min(1, "Booking date is required"),
   time_slot: z.string().min(1, "Time slot is required"),
   notes: z.string().optional(),
   status: z.enum(["pending", "confirmed", "cancelled"]),
+  region: z.number().nullable().optional(),
   // approve: z.boolean().optional(),
 });
 
@@ -48,6 +51,7 @@ export function BookingModal({
   const [professors, setProfessors] = useState<Professor[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
   const [loadingProfessors, setLoadingProfessors] = useState(false);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -77,6 +81,7 @@ export function BookingModal({
             time_slot: initialData.time_slot || "",
             notes: initialData.notes || "",
             status: initialData.status || "confirmed",
+            region: initialData.region ?? null,
           }
         : {
             title: "",
@@ -87,6 +92,7 @@ export function BookingModal({
             time_slot: "",
             notes: "",
             status: "confirmed",
+            region: null,
           },
     [initialData, defaultBookingType]
   );
@@ -107,6 +113,13 @@ export function BookingModal({
   // Watch booking_date and professor for slot and student fetching
   const bookingDate = watch("booking_date");
   const selectedProfessor = watch("professor");
+
+  // Fetch regions on mount
+  useEffect(() => {
+    getRegions()
+      .then(setRegions)
+      .catch(() => setRegions([]));
+  }, []);
 
   // Fetch professors on mount
   useEffect(() => {
@@ -191,6 +204,34 @@ export function BookingModal({
   }, [initialData, open, reset, defaultValues]);
 
   async function onSubmit(data: BookingFormValues) {
+    // Check credits before submitting
+    if (data.booking_type === "pro") {
+      const prof = professors.find((p) => p.id === data.professor);
+      if (prof && (prof.remaining_hours ?? 0) <= 0) {
+        toast.error(
+          "This professor has no remaining hours. Please buy a pack first.",
+          {
+            duration: 5000,
+          }
+        );
+        return;
+      }
+    } else if (data.booking_type === "public") {
+      const noCredits = students.filter(
+        (s) => data.students.includes(s.id) && (s.remaining_hours ?? -1) === 0
+      );
+      if (noCredits.length > 0) {
+        const names = noCredits.map((s) => s.full_name).join(", ");
+        toast.error(
+          `The following students have no remaining hours: ${names}. Please buy a pack first.`,
+          {
+            duration: 6000,
+          }
+        );
+        return;
+      }
+    }
+
     setError(null);
     setFormLoading(true);
     try {
@@ -198,10 +239,11 @@ export function BookingModal({
         ...data,
         professor: data.professor,
         students: data.students,
+        region: data.region ?? null,
       };
       if (initialData) {
         await apiFetch(`/booking/bookings/${initialData.id}/`, {
-          method: "PUT",
+          method: "PATCH",
           body: JSON.stringify(payload),
         });
       } else {
@@ -246,8 +288,12 @@ export function BookingModal({
                 className="w-full border rounded px-3 py-2 dark:bg-black"
                 disabled={formLoading}
               >
-                <option value="pro" className="dark:bg-black">Pro (Professor)</option>
-                <option value="public" className="dark:bg-black">Public (Student)</option>
+                <option value="pro" className="dark:bg-black">
+                  Pro (Professor)
+                </option>
+                <option value="public" className="dark:bg-black">
+                  Public (Student)
+                </option>
               </select>
             )}
           />
@@ -350,8 +396,18 @@ export function BookingModal({
                   disabled={formLoading || !bookingDate}
                 >
                   <option value="" className="dark:bg-black">
-                    {initialData ? initialData.time_slot : "Select Time Slot"}
+                    Select Time Slot
                   </option>
+                  {/* Keep the current slot as selectable even if not in available list */}
+                  {initialData?.time_slot &&
+                    !slots.find((s) => s.value === initialData.time_slot) && (
+                      <option
+                        value={initialData.time_slot}
+                        className="dark:bg-black"
+                      >
+                        {initialData.time_slot} (current)
+                      </option>
+                    )}
                   {slots.map((slot) => (
                     <option
                       key={slot.value}
@@ -370,6 +426,32 @@ export function BookingModal({
               {errors.time_slot.message}
             </span>
           )}
+        </div>
+        <div>
+          <Label>Region</Label>
+          <Controller
+            control={control}
+            name="region"
+            render={({ field }) => (
+              <select
+                value={field.value ?? ""}
+                onChange={(e) =>
+                  field.onChange(e.target.value ? Number(e.target.value) : null)
+                }
+                className="w-full border rounded px-3 py-2 dark:bg-black"
+                disabled={formLoading}
+              >
+                <option value="">No specific region</option>
+                {regions
+                  .filter((r) => r.is_active)
+                  .map((r) => (
+                    <option key={r.id} value={r.id} className="dark:bg-black">
+                      {r.name}
+                    </option>
+                  ))}
+              </select>
+            )}
+          />
         </div>
         <div>
           <Label>Notes</Label>
