@@ -60,7 +60,9 @@ export function StudentModal({
     control,
     formState: { errors, isSubmitting },
   } = useForm<StudentFormValues>({
-    resolver: zodResolver(isPublicStudent ? publicStudentSchema : proStudentSchema),
+    resolver: zodResolver(
+      isPublicStudent ? publicStudentSchema : proStudentSchema
+    ),
     defaultValues: isEdit
       ? {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
