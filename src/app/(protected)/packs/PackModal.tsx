@@ -40,7 +40,6 @@ const packSchema = z.object({
     .positive("Price must be greater than 0"),
   active: z.boolean(),
   is_public: z.boolean(),
-  target_role: z.enum(["professor", "student"]),
   creditHours: z
     .number({ required_error: "Credit Hours is required" })
     .int("Credit Hours must be a whole number")
@@ -78,9 +77,6 @@ export function PackModal({
           price: initialData?.price ? parseFloat(initialData.price) : 0,
           active: initialData?.active ?? true,
           is_public: initialData?.is_public ?? false,
-          target_role:
-            (initialData?.target_role as "professor" | "student") ??
-            "professor",
           creditHours: initialData?.total_hours ?? 0,
         }
       : {
@@ -89,7 +85,6 @@ export function PackModal({
           price: 0,
           active: true,
           is_public: false,
-          target_role: "professor",
           creditHours: 0,
         },
   });
@@ -111,8 +106,6 @@ export function PackModal({
         price: initialData.price ? parseFloat(initialData.price) : 0,
         active: initialData.active ?? true,
         is_public: initialData.is_public ?? false,
-        target_role:
-          (initialData.target_role as "professor" | "student") ?? "professor",
         creditHours: initialData.total_hours ?? 0,
       });
       setImagePreview(initialData.image || null);
@@ -124,7 +117,6 @@ export function PackModal({
         price: 0,
         active: true,
         is_public: false,
-        target_role: "professor",
         creditHours: 0,
       });
       setImagePreview(null);
@@ -193,7 +185,7 @@ export function PackModal({
         description: data.description.trim(),
         active: data.active,
         is_public: data.is_public,
-        target_role: data.target_role,
+        target_role: data.is_public ? "student" : "professor",
         price: data.price.toString(),
         total_hours: data.creditHours,
         region: selectedRegion ? Number(selectedRegion) : null,
@@ -377,24 +369,6 @@ export function PackModal({
             onCheckedChange={(checked) => setValue("is_public", checked)}
             disabled={isSubmitting}
           />
-        </div>
-
-        <div>
-          <Label htmlFor="target_role">
-            Target Role <span className="text-red-500">*</span>
-          </Label>
-          <select
-            id="target_role"
-            {...register("target_role")}
-            disabled={isSubmitting}
-            className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <option value="professor">Professor (Pro Professor packs)</option>
-            <option value="student">Student (Public Student packs)</option>
-          </select>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Determines who can purchase this pack.
-          </p>
         </div>
 
         {error && (
